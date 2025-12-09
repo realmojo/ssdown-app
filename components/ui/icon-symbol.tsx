@@ -18,6 +18,8 @@ const MAPPING = {
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  // Used as the download button icon
+  'arrow.down.circle.fill': 'file-download',
 } as IconMapping;
 
 /**
