@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   DarkTheme,
   DefaultTheme,
@@ -6,7 +7,13 @@ import {
 import * as MediaLibrary from "expo-media-library";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { AppState, Platform } from "react-native";
+import {
+  AdEventType,
+  AppOpenAd,
+  TestIds,
+} from "react-native-google-mobile-ads";
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -61,12 +68,115 @@ async function requestInitialPermission() {
   }
 }
 
+// App Open Ad configuration
+const APP_OPEN_AD_UNIT_ID = __DEV__
+  ? TestIds.APP_OPEN
+  : Platform.OS === "ios"
+  ? "ca-app-pub-9130836798889522/5218051479" // Replace with your iOS App Open Ad Unit ID
+  : "ca-app-pub-9130836798889522/1741894792"; // Replace with your Android App Open Ad Unit ID
+
+// Cooldown period: 10 minutes (in milliseconds)
+const AD_COOLDOWN_PERIOD = 1000 * 60 * 10; // 10 minutes
+const LAST_AD_SHOWN_KEY = "last_app_open_ad_shown";
+
+// Check if enough time has passed since last ad
+async function canShowAd(): Promise<boolean> {
+  try {
+    const lastShown = await AsyncStorage.getItem(LAST_AD_SHOWN_KEY);
+    if (!lastShown) {
+      return true; // Never shown before
+    }
+    const lastShownTime = parseInt(lastShown, 10);
+    const now = Date.now();
+    return now - lastShownTime >= AD_COOLDOWN_PERIOD;
+  } catch (error) {
+    console.warn("Error checking ad cooldown:", error);
+    return true; // Default to showing ad if error
+  }
+}
+
+// Save the time when ad was shown
+async function saveAdShownTime() {
+  try {
+    await AsyncStorage.setItem(LAST_AD_SHOWN_KEY, Date.now().toString());
+  } catch (error) {
+    console.warn("Error saving ad shown time:", error);
+  }
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const appOpenAdRef = useRef<AppOpenAd | null>(null);
+  const appState = useRef(AppState.currentState);
+  const isFirstLaunch = useRef(true);
 
   useEffect(() => {
     // Request permission on app launch
     requestInitialPermission();
+
+    // Initialize App Open Ad
+    const initAppOpenAd = async () => {
+      try {
+        const ad = AppOpenAd.createForAdRequest(APP_OPEN_AD_UNIT_ID, {
+          requestNonPersonalizedAdsOnly: true,
+        });
+
+        // Show the ad when loaded (only if cooldown has passed)
+        ad.addAdEventListener(AdEventType.LOADED, async () => {
+          const canShow = await canShowAd();
+          if (canShow) {
+            ad.show();
+            await saveAdShownTime();
+          }
+        });
+
+        // Handle ad closed
+        ad.addAdEventListener(AdEventType.CLOSED, () => {
+          // Load next ad for future use (but won't show until cooldown passes)
+          ad.load();
+        });
+
+        // Load the ad on first launch
+        const canShow = await canShowAd();
+        if (canShow || isFirstLaunch.current) {
+          await ad.load();
+          isFirstLaunch.current = false;
+        }
+
+        appOpenAdRef.current = ad;
+      } catch (error) {
+        console.warn("App Open Ad initialization error:", error);
+      }
+    };
+
+    initAppOpenAd();
+
+    // Handle app state changes (when app comes to foreground)
+    const subscription = AppState.addEventListener(
+      "change",
+      async (nextAppState) => {
+        if (
+          appState.current.match(/inactive|background/) &&
+          nextAppState === "active"
+        ) {
+          // App has come to the foreground
+          // Only show ad if enough time has passed since last ad
+          const canShow = await canShowAd();
+          if (appOpenAdRef.current && canShow) {
+            // Load new ad when app comes to foreground (will show when loaded if cooldown passed)
+            appOpenAdRef.current.load();
+          }
+        }
+        appState.current = nextAppState;
+      }
+    );
+
+    return () => {
+      subscription.remove();
+      if (appOpenAdRef.current) {
+        appOpenAdRef.current.removeAllListeners();
+      }
+    };
   }, []);
 
   return (
