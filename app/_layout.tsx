@@ -10,37 +10,40 @@ import { useEffect } from "react";
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { DownloadPolicyProvider } from "./context/download-policy";
 
 export const unstable_settings = {
   anchor: "(tabs)",
 };
 
-// ssdown 다운로드 폴더 초기화
+// Initialize ssdown download folder (currently unused)
 // async function initializeDownloadFolder() {
 //   try {
 //     const downloadDir = new Directory(Paths.document, "ssdown");
-//     // 폴더가 없으면 생성 (이미 있으면 무시됨)
+//     // Create the folder if missing (no-op if it already exists)
 //     if (!downloadDir.exists) {
 //       downloadDir.create({ intermediates: true, idempotent: true });
 //     }
 //   } catch (error) {
-//     // 폴더가 이미 존재하거나 생성 실패 시 무시
+//     // Ignore if it already exists or fails to create
 //     console.log("Download folder initialization:", error);
 //   }
 // }
 
-// 앱 시작 시 권한 요청
+// Request permission on app start
 async function requestInitialPermission() {
   try {
-    // 현재 권한 상태 확인
+    // Check current permission state
     const { status: currentStatus } = await MediaLibrary.getPermissionsAsync();
 
-    // 이미 권한이 있으면 종료
+    // Early exit if already granted
     if (currentStatus === "granted") {
       return;
     }
 
-    // 권한이 없거나 거부된 경우 요청
+    // Request permission if missing or denied
     const { status, canAskAgain } =
       await MediaLibrary.requestPermissionsAsync();
 
@@ -48,9 +51,9 @@ async function requestInitialPermission() {
       return;
     }
 
-    // 권한이 거부된 경우 (앱 시작 시에는 조용히 처리, 사용자가 다운로드 시 다시 요청 가능)
+    // If denied at startup, stay quiet; downloads will re-request when needed
     if (!canAskAgain) {
-      // 영구적으로 거부된 경우에만 나중에 안내
+      // Log only when permanently denied
       console.log("Permission permanently denied");
     }
   } catch (error) {
@@ -62,16 +65,32 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
-    // 앱 시작 시 권한 요청
+    // Request permission on app launch
     requestInitialPermission();
   }, []);
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack>
-      <StatusBar style="auto" />
+      <DownloadPolicyProvider>
+        <SafeAreaView style={styles.container}>
+          <Stack>
+            <Stack.Screen
+              name="(tabs)"
+              options={{
+                headerShown: false,
+                // contentStyle: { backgroundColor: "#ffffff" },
+              }}
+            />
+          </Stack>
+        </SafeAreaView>
+      </DownloadPolicyProvider>
+      <StatusBar style="light" />
     </ThemeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});

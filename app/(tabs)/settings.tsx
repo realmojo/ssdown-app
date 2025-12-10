@@ -1,6 +1,9 @@
+import { ThemedText } from "@/components/themed-text";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import * as MediaLibrary from "expo-media-library";
+import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -9,16 +12,18 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-
-import { ThemedText } from "@/components/themed-text";
+import { useDownloadPolicy } from "../context/download-policy";
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [checkingPermission, setCheckingPermission] = useState(true);
   const [videoCount, setVideoCount] = useState(0);
+  const [language, setLanguage] = useState<string | null>(null);
+  const { wifiOnly, setWifiOnly } = useDownloadPolicy();
 
   const checkPermission = useCallback(async () => {
     try {
@@ -54,6 +59,14 @@ export default function SettingsScreen() {
   useEffect(() => {
     checkPermission();
     loadVideoCount();
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem("app_language");
+        if (stored) setLanguage(stored);
+      } catch (error) {
+        console.warn("Failed to load language:", error);
+      }
+    })();
   }, [checkPermission, loadVideoCount]);
 
   const requestPermission = async () => {
@@ -61,15 +74,15 @@ export default function SettingsScreen() {
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status === "granted") {
         setHasPermission(true);
-        Alert.alert("성공", "저장 권한이 허용되었습니다.");
+        Alert.alert("Success", "Storage permission granted.");
       } else {
         Alert.alert(
-          "권한 필요",
-          "동영상을 저장하려면 권한이 필요합니다. 설정에서 권한을 허용해주세요.",
+          "Permission needed",
+          "Storage permission is required to save videos. Please allow it in settings.",
           [
-            { text: "취소", style: "cancel" },
+            { text: "Cancel", style: "cancel" },
             {
-              text: "설정 열기",
+              text: "Open settings",
               onPress: () => Linking.openSettings(),
             },
           ]
@@ -77,7 +90,10 @@ export default function SettingsScreen() {
       }
     } catch (error) {
       console.error("Error requesting permission:", error);
-      Alert.alert("오류", "권한 요청 중 오류가 발생했습니다.");
+      Alert.alert(
+        "Error",
+        "An error occurred while requesting permissions. Please try again."
+      );
     }
   };
 
@@ -122,117 +138,142 @@ export default function SettingsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* 권한 설정 섹션 */}
-        <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>권한 설정</ThemedText>
-          <View style={styles.surface}>
-            <View style={styles.settingItem}>
-              <View style={styles.settingIcon}>
-                <MaterialCommunityIcons
-                  name="folder-lock-outline"
-                  size={24}
-                  color="#1d8fff"
-                />
-              </View>
-              <View style={styles.settingContent}>
-                <ThemedText style={styles.settingTitle}>저장 권한</ThemedText>
-                <ThemedText style={styles.settingSubtitle}>
-                  {checkingPermission
-                    ? "확인 중..."
-                    : hasPermission
-                    ? "권한 허용됨"
-                    : "권한 필요"}
-                </ThemedText>
-              </View>
-              {checkingPermission ? (
-                <ActivityIndicator size="small" color="#1d8fff" />
-              ) : !hasPermission ? (
-                <Pressable
-                  style={styles.permissionButton}
-                  onPress={requestPermission}
-                >
-                  <ThemedText style={styles.permissionButtonText}>
-                    허용
-                  </ThemedText>
-                </Pressable>
-              ) : (
-                <MaterialCommunityIcons
-                  name="check-circle"
-                  size={24}
-                  color="#1eb980"
-                />
-              )}
+    <ScrollView
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Permission section */}
+      <View style={styles.section}>
+        <ThemedText style={styles.sectionTitle}>Permissions</ThemedText>
+        <View style={styles.surface}>
+          <View style={styles.settingItem}>
+            <View style={styles.settingIcon}>
+              <MaterialCommunityIcons
+                name="folder-lock-outline"
+                size={24}
+                color="#1d8fff"
+              />
             </View>
+            <View style={styles.settingContent}>
+              <ThemedText style={styles.settingTitle}>
+                Storage permission
+              </ThemedText>
+              <ThemedText style={styles.settingSubtitle}>
+                {checkingPermission
+                  ? "Checking..."
+                  : hasPermission
+                  ? "Permission granted"
+                  : "Permission required"}
+              </ThemedText>
+            </View>
+            {checkingPermission ? (
+              <ActivityIndicator size="small" color="#1d8fff" />
+            ) : !hasPermission ? (
+              <Pressable
+                style={styles.permissionButton}
+                onPress={requestPermission}
+              >
+                <ThemedText style={styles.permissionButtonText}>
+                  Allow
+                </ThemedText>
+              </Pressable>
+            ) : (
+              <MaterialCommunityIcons
+                name="check-circle"
+                size={24}
+                color="#1eb980"
+              />
+            )}
           </View>
         </View>
+      </View>
 
-        {/* 저장 공간 섹션 */}
-        <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>저장 공간</ThemedText>
-          <View style={styles.surface}>
-            <SettingItem
-              icon="video-outline"
-              title="다운로드한 동영상"
-              subtitle={`${videoCount}개`}
-            />
-            <SettingItem
-              icon="folder-outline"
-              title="저장 위치"
-              subtitle="갤러리 > ssdown 앨범"
-            />
-          </View>
+      {/* Storage section */}
+      <View style={styles.section}>
+        <ThemedText style={styles.sectionTitle}>Storage</ThemedText>
+        <View style={styles.surface}>
+          <SettingItem
+            icon="video-outline"
+            title="Downloaded videos"
+            subtitle={`${videoCount} items`}
+          />
+          <SettingItem
+            icon="folder-outline"
+            title="Save location"
+            subtitle="Gallery > ssdown album"
+          />
         </View>
+      </View>
 
-        {/* 앱 정보 섹션 */}
-        <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>앱 정보</ThemedText>
-          <View style={styles.surface}>
-            <SettingItem
-              icon="information-outline"
-              title="앱 버전"
-              subtitle={Constants.expoConfig?.version || "1.0.0"}
-            />
-            <SettingItem
-              icon="code-tags"
-              title="빌드 번호"
-              subtitle={String(
-                Constants.expoConfig?.ios?.buildNumber ||
-                  Constants.expoConfig?.android?.versionCode ||
-                  "1"
-              )}
-            />
-          </View>
+      {/* Language section */}
+      <View style={styles.section}>
+        <ThemedText style={styles.sectionTitle}>Language</ThemedText>
+        <View style={styles.surface}>
+          <SettingItem
+            icon="translate"
+            title="Language"
+            subtitle={language || "Select language"}
+            onPress={() => router.push("/language")}
+          />
         </View>
+      </View>
 
-        {/* 기타 섹션 */}
-        <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>기타</ThemedText>
-          <View style={styles.surface}>
-            <SettingItem
-              icon="cog-outline"
-              title="시스템 설정 열기"
-              subtitle="권한 및 기타 설정"
-              onPress={openSettings}
-            />
-          </View>
+      {/* Download policy */}
+      <View style={styles.section}>
+        <ThemedText style={styles.sectionTitle}>Download policy</ThemedText>
+        <View style={styles.surface}>
+          <SettingItem
+            icon="wifi"
+            title="Download on Wi-Fi only"
+            subtitle={
+              wifiOnly
+                ? "Downloads will start only on Wi-Fi"
+                : "Allow downloads on any network"
+            }
+            rightComponent={
+              <Switch
+                value={wifiOnly}
+                onValueChange={setWifiOnly}
+                trackColor={{ true: "#1eb980", false: "#cbd5e1" }}
+                thumbColor={wifiOnly ? "#0f172a" : "#f8fafc"}
+              />
+            }
+            showArrow={false}
+          />
         </View>
-      </ScrollView>
-    </SafeAreaView>
+      </View>
+
+      {/* App info section */}
+      <View style={styles.section}>
+        <ThemedText style={styles.sectionTitle}>App info</ThemedText>
+        <View style={styles.surface}>
+          <SettingItem
+            icon="information-outline"
+            title="App version"
+            subtitle={Constants.expoConfig?.version || "1.0.0"}
+          />
+        </View>
+      </View>
+
+      {/* Misc section */}
+      <View style={styles.section}>
+        <ThemedText style={styles.sectionTitle}>Misc</ThemedText>
+        <View style={styles.surface}>
+          <SettingItem
+            icon="cog-outline"
+            title="Open system settings"
+            subtitle="Permissions and other settings"
+            onPress={openSettings}
+          />
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#ffffff",
-  },
   content: {
-    padding: 20,
+    padding: 16,
     gap: 20,
   },
   section: {

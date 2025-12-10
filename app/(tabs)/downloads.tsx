@@ -1,3 +1,4 @@
+import { ThemedText } from "@/components/themed-text";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as MediaLibrary from "expo-media-library";
@@ -16,12 +17,10 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-
-import { ThemedText } from "@/components/themed-text";
 
 const { width } = Dimensions.get("window");
-const ITEM_SIZE = (width - 48) / 2; // 2열 그리드, 양쪽 패딩 24px
+// Two-column grid; 24px padding on both sides
+const ITEM_SIZE = (width - 48) / 2;
 
 export default function DownloadsScreen() {
   const [videos, setVideos] = useState<MediaLibrary.Asset[]>([]);
@@ -37,7 +36,7 @@ export default function DownloadsScreen() {
   const loadVideos = useCallback(async () => {
     try {
       setLoading(true);
-      // ssdown 앨범 가져오기
+      // Fetch ssdown album
       const album = await MediaLibrary.getAlbumAsync("ssdown");
 
       if (!album) {
@@ -46,12 +45,12 @@ export default function DownloadsScreen() {
         return;
       }
 
-      // 앨범의 모든 에셋 가져오기 (동영상만)
+      // Get all assets from the album (video only)
       const assets = await MediaLibrary.getAssetsAsync({
         album: album,
         mediaType: MediaLibrary.MediaType.video,
         sortBy: MediaLibrary.SortBy.creationTime,
-        first: 100, // 최대 100개
+        first: 100, // up to 100 items
       });
 
       for (const asset of assets.assets) {
@@ -61,7 +60,7 @@ export default function DownloadsScreen() {
       setVideos(assets.assets);
     } catch (error) {
       console.error("Error loading videos:", error);
-      Alert.alert("오류", "동영상 목록을 불러오는 중 오류가 발생했습니다.");
+      Alert.alert("Error", "Failed to load the video list.");
       setVideos([]);
     } finally {
       setLoading(false);
@@ -96,14 +95,14 @@ export default function DownloadsScreen() {
       if (isAvailable) {
         await Sharing.shareAsync(asset.uri, {
           mimeType: "video/mp4",
-          dialogTitle: "동영상 공유",
+          dialogTitle: "Share video",
         });
       } else {
-        Alert.alert("알림", "공유 기능을 사용할 수 없습니다.");
+        Alert.alert("Notice", "Sharing is not available.");
       }
     } catch (error) {
       console.error("Error sharing video:", error);
-      Alert.alert("오류", "동영상 공유 중 오류가 발생했습니다.");
+      Alert.alert("Error", "An error occurred while sharing the video.");
     }
   };
 
@@ -171,7 +170,7 @@ export default function DownloadsScreen() {
               size={20}
               color="#1d8fff"
             />
-            <ThemedText style={styles.actionText}>공유</ThemedText>
+            <ThemedText style={styles.actionText}>Share</ThemedText>
           </Pressable>
         </View>
       </View>
@@ -180,49 +179,33 @@ export default function DownloadsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <ThemedText type="title" style={styles.title}>
-            다운로드
-          </ThemedText>
-        </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1d8fff" />
-          <ThemedText style={styles.loadingText}>
-            동영상 목록을 불러오는 중...
-          </ThemedText>
-        </View>
-      </SafeAreaView>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#1d8fff" />
+        <ThemedText style={styles.loadingText}>Loading videos...</ThemedText>
+      </View>
     );
   }
 
   if (videos.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <ThemedText type="title" style={styles.title}>
-            다운로드
-          </ThemedText>
-        </View>
-        <View style={styles.emptyContainer}>
-          <MaterialCommunityIcons
-            name="folder-outline"
-            size={64}
-            color="#9aa7b8"
-          />
-          <ThemedText style={styles.emptyTitle}>
-            다운로드한 동영상이 없습니다
-          </ThemedText>
-          <ThemedText style={styles.emptySubtitle}>
-            홈 화면에서 동영상을 다운로드하면 여기에 표시됩니다
-          </ThemedText>
-        </View>
-      </SafeAreaView>
+      <View style={styles.emptyContainer}>
+        <MaterialCommunityIcons
+          name="folder-outline"
+          size={64}
+          color="#9aa7b8"
+        />
+        <ThemedText style={styles.emptyTitle}>
+          No downloaded videos yet
+        </ThemedText>
+        <ThemedText style={styles.emptySubtitle}>
+          Download videos from Home to see them here.
+        </ThemedText>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <>
       <FlatList
         data={videos}
         renderItem={renderVideoItem}
@@ -236,7 +219,7 @@ export default function DownloadsScreen() {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* 비디오 플레이어 모달 */}
+      {/* Video player modal */}
       <Modal
         visible={selectedVideo !== null}
         animationType="fade"
@@ -244,54 +227,38 @@ export default function DownloadsScreen() {
         onRequestClose={closeVideoPlayer}
       >
         <View style={styles.videoPlayerContainer}>
-          <SafeAreaView style={styles.videoPlayerSafeArea}>
-            <View style={styles.videoPlayerHeader}>
-              <Pressable onPress={closeVideoPlayer} style={styles.closeButton}>
-                <MaterialIcons name="close" size={28} color="#fff" />
+          <View style={styles.videoPlayerHeader}>
+            <Pressable onPress={closeVideoPlayer} style={styles.closeButton}>
+              <MaterialIcons name="close" size={28} color="#fff" />
+            </Pressable>
+            {selectedVideo && (
+              <Pressable
+                onPress={() => handleShare(selectedVideo)}
+                style={styles.shareButton}
+              >
+                <MaterialCommunityIcons
+                  name="share-outline"
+                  size={24}
+                  color="#fff"
+                />
               </Pressable>
-              {selectedVideo && (
-                <Pressable
-                  onPress={() => handleShare(selectedVideo)}
-                  style={styles.shareButton}
-                >
-                  <MaterialCommunityIcons
-                    name="share-outline"
-                    size={24}
-                    color="#fff"
-                  />
-                </Pressable>
-              )}
-            </View>
-            {selectedVideo && player && (
-              <VideoView
-                player={player}
-                style={styles.videoPlayer}
-                contentFit="contain"
-                nativeControls
-              />
             )}
-          </SafeAreaView>
+          </View>
+          {selectedVideo && player && (
+            <VideoView
+              player={player}
+              style={styles.videoPlayer}
+              contentFit="contain"
+              nativeControls
+            />
+          )}
         </View>
       </Modal>
-    </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f1f2f3",
-  },
-  header: {
-    paddingHorizontal: 10,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e3ebf5",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -306,7 +273,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 40,
+    paddingHorizontal: 32,
     gap: 12,
   },
   emptyTitle: {
@@ -322,11 +289,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   listContent: {
-    padding: 12,
+    padding: 20,
   },
   row: {
     justifyContent: "space-between",
-    gap: 12,
+    gap: 16,
   },
   videoCard: {
     width: ITEM_SIZE,
