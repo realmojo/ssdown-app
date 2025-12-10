@@ -1,6 +1,8 @@
 import { ThemedText } from "@/components/themed-text";
 import { tintColorLight } from "@/constants/theme";
+import { getVideoType } from "@/utils/common";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { Directory, File, Paths } from "expo-file-system";
 import { Image } from "expo-image";
 import * as MediaLibrary from "expo-media-library";
@@ -22,8 +24,9 @@ import { useDownloadPolicy } from "../context/download-policy";
 interface DownloadResult {
   thumbnail?: string;
   user?: { name: string; handle: string; avatar?: string };
-  date?: string;
+  createdAt?: string;
   tag?: string;
+  content?: string;
   stats?: Array<{
     key: string;
     icon: string;
@@ -35,7 +38,9 @@ interface DownloadResult {
 
 export default function HomeScreen() {
   const [url, setUrl] = useState(
-    "https://www.tiktok.com/@hahahago99/video/7553175660416519444"
+    // "https://x.com/uahan2/status/1989118595876675673/video/1"
+    // "https://www.tiktok.com/@user58210557014162/video/7580653045323795733?is_from_webapp=1&sender_device=pc"
+    "https://www.facebook.com/share/r/1AFGYu1iFk/"
   );
   const [showResult, setShowResult] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -52,50 +57,35 @@ export default function HomeScreen() {
       return;
     }
 
-    // Enforce Wi-Fi-only downloads if enabled
-    if (wifiOnly) {
-      try {
-        const networkState = await Network.getNetworkStateAsync();
-        if (
-          !networkState.isConnected ||
-          networkState.type !== Network.NetworkStateType.WIFI
-        ) {
-          Alert.alert(
-            "Wi-Fi required",
-            "Downloads are limited to Wi-Fi. Please connect to Wi-Fi or disable the Wi-Fi-only setting in Settings."
-          );
-          return;
-        }
-      } catch (error) {
-        console.warn("Network check failed:", error);
-        Alert.alert(
-          "Network check failed",
-          "Could not verify network type. Please check your connection and try again."
-        );
-        return;
-      }
-    }
-
     setLoading(true);
     setError(null);
     setShowResult(false);
 
+    const videoType = getVideoType(url);
+    console.log("videoType", videoType);
+    if (videoType === "unknown") {
+      Alert.alert("Error", "Invalid URL");
+      return;
+    }
+
     try {
-      const apiUrl = `https://ssdown.app/api/tiktok?url=${encodeURIComponent(
-        url
-      )}`;
+      const apiUrl = `https://ssdown.app/api/${videoType}?url=${url}`;
       const response = await fetch(apiUrl);
+      let data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
+      if (videoType === "instagram") {
+        data = data[0];
       }
-
-      const data = await response.json();
 
       // Date formatting helper
       const formatDate = (dateString: string) => {
+        console.log("dateString", dateString);
         try {
-          const date = new Date(dateString);
+          let date = new Date(dateString);
+          console.log("date", date);
+          if (isNaN(date.getTime())) {
+            date = new Date();
+          }
           const year = date.getFullYear();
           const month = String(date.getMonth() + 1).padStart(2, "0");
           const day = String(date.getDate()).padStart(2, "0");
@@ -130,12 +120,13 @@ export default function HomeScreen() {
       // Map API response into the DownloadResult shape
       const result: DownloadResult = {
         thumbnail: data.thumbnail,
+        content: data.content,
         user: {
           name: userName,
           handle: screenName ? `@${screenName}` : "@unknown",
           avatar: data.user?.avatar,
         },
-        date: data.createdAt ? formatDate(data.createdAt) : "",
+        createdAt: data.createdAt ? formatDate(data.createdAt) : "",
         tag: data.content ? extractHashtag(data.content) : "",
         stats: data.stats
           ? [
@@ -168,7 +159,8 @@ export default function HomeScreen() {
         downloads: data.videoItems
           ? data.videoItems.map((item: any, index: number) => ({
               id: `video-${index}`,
-              label: item.bitrate || `${item.content_type || "mp4"}`,
+              label:
+                item.quality || item.bitrate || `${item.content_type || "mp4"}`,
               url: decodeURIComponent(item.url || ""),
             }))
           : [],
@@ -241,9 +233,38 @@ export default function HomeScreen() {
     quality: string,
     downloadId: string
   ) => {
+    const videoType = getVideoType(url);
+    if (videoType === "unknown") {
+      Alert.alert("Error", "Invalid URL");
+      return;
+    }
     if (!downloadUrl) {
       Alert.alert("Error", "Download URL is not available");
       return;
+    }
+
+    // Enforce Wi-Fi-only downloads if enabled
+    if (wifiOnly) {
+      try {
+        const networkState = await Network.getNetworkStateAsync();
+        if (
+          !networkState.isConnected ||
+          networkState.type !== Network.NetworkStateType.WIFI
+        ) {
+          Alert.alert(
+            "Wi-Fi required",
+            "Downloads are limited to Wi-Fi. Please connect to Wi-Fi or disable the Wi-Fi-only setting in Settings."
+          );
+          return;
+        }
+      } catch (error) {
+        console.warn("Network check failed:", error);
+        Alert.alert(
+          "Network check failed",
+          "Could not verify network type. Please check your connection and try again."
+        );
+        return;
+      }
     }
 
     setDownloadingVideo(downloadId);
@@ -256,13 +277,14 @@ export default function HomeScreen() {
         return;
       }
 
+      console.log("videoType", videoType);
       // Build download API URL
-      const apiDownloadUrl = `https://ssdown.app/api/tiktok/download?videoUrl=${encodeURIComponent(
+      const apiDownloadUrl = `https://ssdown.app/api/${videoType}/download?videoUrl=${encodeURIComponent(
         downloadUrl
       )}`;
 
       // Generate filename
-      const fileName = `video_${quality}_${Date.now()}.mp4`;
+      const fileName = `video_${videoType}_${Date.now()}.mp4`;
 
       // Save file temporarily inside the app
       const tempDir = new Directory(Paths.cache, "temp");
@@ -329,6 +351,18 @@ export default function HomeScreen() {
   const socialButtons = useMemo(
     () => [
       {
+        key: "x",
+        icon: "x-twitter",
+        label: "X",
+        color: "#1f2937",
+      },
+      {
+        key: "tiktok",
+        icon: "tiktok",
+        label: "Tiktok",
+        color: "#0f172a",
+      },
+      {
         key: "facebook",
         icon: "facebook",
         label: "Facebook",
@@ -338,28 +372,7 @@ export default function HomeScreen() {
         key: "instagram",
         icon: "instagram",
         label: "Instagram",
-        color: "#f77737",
-      },
-      {
-        key: "whatsapp",
-        icon: "whatsapp",
-        label: "WhatsApp",
-        color: "#22c55e",
-      },
-      { key: "twitter", icon: "twitter", label: "Twitter", color: "#1f2937" },
-      // { key: "tiktok", icon: "tiktok", label: "Tiktok", color: "#0f172a" },
-      {
-        key: "dailymotion",
-        icon: "alpha-d-circle",
-        label: "Dailymotion",
-        color: "#0ea5e9",
-      },
-      { key: "vimeo", icon: "vimeo", label: "Vimeo", color: "#0284c7" },
-      {
-        key: "tubidy",
-        icon: "cloud-download-outline",
-        label: "Tubidy",
-        color: "#0ea5e9",
+        color: "#df73a3",
       },
     ],
     []
@@ -387,17 +400,13 @@ export default function HomeScreen() {
 
       {/* Download Button */}
       <Pressable
-        style={({ pressed }) => [
-          styles.searchButton,
-          pressed && styles.searchButtonPressed,
-          loading && styles.searchButtonDisabled,
-        ]}
+        style={[styles.searchButton, loading && styles.searchButtonDisabled]}
         android_ripple={{ color: "rgba(255,255,255,0.14)" }}
         onPress={handleDownload}
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color="#fff" style={{ height: 24 }} /> // small size
         ) : (
           <ThemedText style={styles.searchButtonText}>DOWNLOAD</ThemedText>
         )}
@@ -412,11 +421,18 @@ export default function HomeScreen() {
             <View
               style={[styles.socialCircle, { backgroundColor: item.color }]}
             >
-              <MaterialCommunityIcons
-                name={item.icon as any}
-                size={32}
-                color="#fff"
-              />
+              {item.label === "X" && (
+                <FontAwesome6 name="x-twitter" size={28} color="#fff" />
+              )}
+              {item.label === "Tiktok" && (
+                <FontAwesome6 name="tiktok" size={28} color="#fff" />
+              )}
+              {item.label === "Facebook" && (
+                <FontAwesome6 name="facebook" size={28} color="#fff" />
+              )}
+              {item.label === "Instagram" && (
+                <FontAwesome6 name="instagram" size={28} color="#fff" />
+              )}
             </View>
             <ThemedText style={styles.socialLabel}>{item.label}</ThemedText>
           </Pressable>
@@ -436,6 +452,34 @@ export default function HomeScreen() {
         </View>
         <MaterialIcons name="arrow-forward-ios" size={18} color="#e2e8f0" />
       </Pressable> */}
+
+      {loading && !showResult && (
+        <View style={styles.surface}>
+          <ThemedText style={styles.skeletonLoadingText}>Loading...</ThemedText>
+          <View style={styles.skeletonThumb} />
+          <View style={styles.profileRow}>
+            <View style={styles.skeletonAvatar} />
+            <View style={{ flex: 1, gap: 6 }}>
+              <View style={styles.skeletonLine} />
+              <View style={[styles.skeletonLine, { width: "50%" }]} />
+            </View>
+            <View style={styles.skeletonPill} />
+          </View>
+          <View style={styles.skeletonLine} />
+          <View style={styles.skeletonStatsRow}>
+            {[0, 1, 2, 3].map((i) => (
+              <View key={i} style={styles.skeletonStatItem}>
+                <View style={styles.skeletonIcon} />
+                <View style={[styles.skeletonLine, { width: 40 }]} />
+              </View>
+            ))}
+          </View>
+          <View style={styles.skeletonDownloadRow} />
+          <View style={styles.skeletonDownloadRow} />
+          <View style={styles.skeletonDownloadRow} />
+        </View>
+      )}
+
       {showResult && downloadResult && (
         <View style={styles.surface}>
           {downloadResult.thumbnail && (
@@ -467,7 +511,7 @@ export default function HomeScreen() {
                   {downloadResult.user.handle}
                 </ThemedText>
               </View>
-              {downloadResult.date && (
+              {downloadResult.createdAt && (
                 <View style={styles.datePill}>
                   <MaterialCommunityIcons
                     name="calendar-blank-outline"
@@ -475,15 +519,17 @@ export default function HomeScreen() {
                     color="#9aa7b8"
                   />
                   <ThemedText style={styles.dateText}>
-                    {downloadResult.date}
+                    {downloadResult.createdAt}
                   </ThemedText>
                 </View>
               )}
             </View>
           )}
 
-          {downloadResult.tag && (
-            <ThemedText style={styles.tagText}>{downloadResult.tag}</ThemedText>
+          {downloadResult.content && (
+            <ThemedText style={styles.contentText}>
+              {downloadResult.content}
+            </ThemedText>
           )}
 
           {downloadResult.stats && downloadResult.stats.length > 0 && (
@@ -632,14 +678,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   searchButton: {
+    width: "100%",
     backgroundColor: tintColorLight,
     borderRadius: 16,
     paddingVertical: 18,
     alignItems: "center",
     justifyContent: "center",
-  },
-  searchButtonPressed: {
-    opacity: 0.9,
   },
   searchButtonDisabled: {
     opacity: 0.6,
@@ -708,6 +752,58 @@ const styles = StyleSheet.create({
     width: "100%",
     aspectRatio: 16 / 9,
   },
+  skeletonThumb: {
+    width: "100%",
+    aspectRatio: 16 / 9,
+    backgroundColor: "#111827",
+    borderRadius: 12,
+  },
+  skeletonAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#111827",
+  },
+  skeletonLine: {
+    height: 10,
+    borderRadius: 6,
+    backgroundColor: "#111827",
+    width: "80%",
+  },
+  skeletonPill: {
+    width: 90,
+    height: 26,
+    borderRadius: 12,
+    backgroundColor: "#111827",
+  },
+  skeletonStatsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 6,
+  },
+  skeletonStatItem: {
+    alignItems: "center",
+    gap: 6,
+  },
+  skeletonIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#111827",
+  },
+  skeletonDownloadRow: {
+    marginTop: 10,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: "#111827",
+  },
+  skeletonLoadingText: {
+    marginTop: 12,
+    color: "#9aa7b8",
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+  },
   profileRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -736,6 +832,11 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 12,
     backgroundColor: "#111827",
+  },
+  contentText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#e5e7eb",
   },
   dateText: {
     color: "#cbd5e1",
@@ -816,5 +917,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
     fontWeight: "600",
+  },
+  adContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "transparent",
   },
 });

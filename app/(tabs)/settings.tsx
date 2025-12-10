@@ -24,6 +24,7 @@ export default function SettingsScreen() {
   const [videoCount, setVideoCount] = useState(0);
   const [language, setLanguage] = useState<string | null>(null);
   const { wifiOnly, setWifiOnly } = useDownloadPolicy();
+  const WIFI_POLICY_KEY = "download_wifi_only";
 
   const checkPermission = useCallback(async () => {
     try {
@@ -67,7 +68,25 @@ export default function SettingsScreen() {
         console.warn("Failed to load language:", error);
       }
     })();
+    (async () => {
+      try {
+        const storedWifi = await AsyncStorage.getItem(WIFI_POLICY_KEY);
+        if (storedWifi !== null) {
+          setWifiOnly(storedWifi === "true");
+        }
+      } catch (error) {
+        console.warn("Failed to load wifi policy:", error);
+      }
+    })();
   }, [checkPermission, loadVideoCount]);
+  const handleWifiToggle = async (value: boolean) => {
+    setWifiOnly(value);
+    try {
+      await AsyncStorage.setItem(WIFI_POLICY_KEY, value ? "true" : "false");
+    } catch (error) {
+      console.warn("Failed to save wifi policy:", error);
+    }
+  };
 
   const requestPermission = async () => {
     try {
@@ -99,6 +118,20 @@ export default function SettingsScreen() {
 
   const openSettings = () => {
     Linking.openSettings();
+  };
+
+  const openURL = async (url: string) => {
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert("Error", "Cannot open this URL.");
+      }
+    } catch (error) {
+      console.error("Error opening URL:", error);
+      Alert.alert("Error", "Failed to open URL.");
+    }
   };
 
   const SettingItem = ({
@@ -233,7 +266,7 @@ export default function SettingsScreen() {
             rightComponent={
               <Switch
                 value={wifiOnly}
-                onValueChange={setWifiOnly}
+                onValueChange={handleWifiToggle}
                 trackColor={{ true: "#1eb980", false: "#cbd5e1" }}
                 thumbColor={wifiOnly ? "#0f172a" : "#f8fafc"}
               />
@@ -251,6 +284,21 @@ export default function SettingsScreen() {
             icon="information-outline"
             title="App version"
             subtitle={Constants.expoConfig?.version || "1.0.0"}
+          />
+          <SettingItem
+            icon="information"
+            title="About"
+            onPress={() => openURL("https://ssdown.app/about")}
+          />
+          <SettingItem
+            icon="shield-check-outline"
+            title="Privacy policy"
+            onPress={() => openURL("https://ssdown.app/privacy")}
+          />
+          <SettingItem
+            icon="email-outline"
+            title="Contact"
+            onPress={() => openURL("https://ssdown.app/contact")}
           />
         </View>
       </View>

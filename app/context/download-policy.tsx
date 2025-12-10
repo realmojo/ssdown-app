@@ -1,4 +1,9 @@
-import * as FileSystem from "expo-file-system";
+import {
+  documentDirectory as documentDirectoryLegacy,
+  getInfoAsync as getInfoAsyncLegacy,
+  readAsStringAsync as readAsStringAsyncLegacy,
+  writeAsStringAsync as writeAsStringAsyncLegacy,
+} from "expo-file-system/legacy";
 import {
   createContext,
   ReactNode,
@@ -20,7 +25,7 @@ const DownloadPolicyContext = createContext<DownloadPolicyContextValue>({
   loaded: false,
 });
 
-const SETTINGS_PATH = `${FileSystem.documentDirectory ?? ""}settings.json`;
+const SETTINGS_PATH = `${documentDirectoryLegacy ?? ""}settings.json`;
 
 export function DownloadPolicyProvider({ children }: { children: ReactNode }) {
   const [wifiOnly, setWifiOnlyState] = useState(false);
@@ -31,9 +36,9 @@ export function DownloadPolicyProvider({ children }: { children: ReactNode }) {
     (async () => {
       try {
         if (!SETTINGS_PATH) return;
-        const info = await FileSystem.getInfoAsync(SETTINGS_PATH);
+        const info = await getInfoAsyncLegacy(SETTINGS_PATH);
         if (info.exists) {
-          const data = await FileSystem.readAsStringAsync(SETTINGS_PATH);
+          const data = await readAsStringAsyncLegacy(SETTINGS_PATH);
           const parsed = JSON.parse(data);
           if (!cancelled && typeof parsed?.wifiOnly === "boolean") {
             setWifiOnlyState(parsed.wifiOnly);
@@ -54,7 +59,7 @@ export function DownloadPolicyProvider({ children }: { children: ReactNode }) {
     setWifiOnlyState(value);
     // Fire and forget persist
     if (SETTINGS_PATH) {
-      FileSystem.writeAsStringAsync(
+      writeAsStringAsyncLegacy(
         SETTINGS_PATH,
         JSON.stringify({ wifiOnly: value })
       ).catch((error) => {
