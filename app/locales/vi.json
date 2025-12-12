@@ -1,0 +1,108 @@
+{
+  "common": {
+    "ok": "OK",
+    "cancel": "Hủy",
+    "error": "Lỗi",
+    "success": "Thành công"
+  },
+  "tabs": {
+    "home": "Trang chủ",
+    "downloads": "Tải xuống",
+    "settings": "Cài đặt"
+  },
+  "home": {
+    "placeholder": "Tìm kiếm hoặc dán URL",
+    "download": "TẢI XUỐNG",
+    "wifiRequiredTitle": "Yêu cầu Wi-Fi",
+    "wifiRequiredBody": "Tải xuống chỉ giới hạn ở Wi-Fi. Vui lòng kết nối Wi-Fi hoặc tắt cài đặt chỉ Wi-Fi trong Cài đặt.",
+    "networkFailedTitle": "Kiểm tra mạng thất bại",
+    "networkFailedBody": "Không thể xác minh loại mạng. Vui lòng kiểm tra kết nối và thử lại.",
+    "invalidUrl": "URL không hợp lệ.",
+    "missingUrl": "Vui lòng nhập URL.",
+    "missingDownloadUrl": "URL tải xuống không khả dụng.",
+    "fetchError": "Không thể tải dữ liệu video",
+    "permissionRequiredTitle": "Yêu cầu quyền lưu trữ",
+    "permissionRequiredBody": "Quyền truy cập thư viện phương tiện là cần thiết để lưu video vào thư viện của bạn.",
+    "permissionErrorTitle": "Lỗi quyền",
+    "permissionErrorBody": "Đã xảy ra lỗi khi yêu cầu quyền. Vui lòng thử lại.",
+    "downloadCompleteTitle": "Tải xuống hoàn tất",
+    "downloadCompleteBody1": "Video đã được lưu vào album ssdown trong thư viện của bạn.",
+    "downloadCompleteBody2": "Bạn có thể tìm thấy nó trong ứng dụng thư viện.",
+    "downloadCompleteAltBody": "Video đã lưu vào:",
+    "downloadErrorTitle": "Lỗi tải xuống",
+    "downloadErrorBody": "Không thể tải xuống video. Vui lòng thử lại."
+  },
+  "downloads": {
+    "loading": "Đang tải video...",
+    "emptyTitle": "Chưa có video nào được tải xuống",
+    "emptySubtitle": "Tải video từ Trang chủ để xem chúng ở đây.",
+    "filterEmptyTitle": "Không tìm thấy video",
+    "filterEmptySubtitle": "Hãy thử chọn bộ lọc khác.",
+    "shareNoticeTitle": "Thông báo",
+    "shareNoticeBody": "Chia sẻ không khả dụng.",
+    "shareErrorTitle": "Lỗi",
+    "shareErrorBody": "Đã xảy ra lỗi khi chia sẻ video.",
+    "deleteTitle": "Xóa video",
+    "deleteMessage": "Bạn có chắc chắn muốn xóa video này không?",
+    "deleteSelectedTitle": "Xóa video",
+    "deleteSelectedMessage": "Bạn có chắc chắn muốn xóa {count} video không?",
+    "deleteErrorTitle": "Lỗi",
+    "deleteErrorBody": "Không thể xóa video.",
+    "deleteErrorBodyMulti": "Không thể xóa video.",
+    "loadError": "Không thể tải danh sách video."
+  },
+  "settings": {
+    "permissions": "Quyền",
+    "storagePermission": "Quyền lưu trữ",
+    "checking": "Đang kiểm tra...",
+    "permissionGranted": "Đã cấp quyền",
+    "permissionRequired": "Yêu cầu quyền",
+    "storageGrantedTitle": "Thành công",
+    "storageGrantedBody": "Đã cấp quyền lưu trữ.",
+    "storageNeededTitle": "Cần quyền",
+    "storageNeededBody": "Quyền lưu trữ là cần thiết để lưu video. Vui lòng cho phép trong cài đặt.",
+    "storageErrorTitle": "Lỗi",
+    "storageErrorBody": "Đã xảy ra lỗi khi yêu cầu quyền. Vui lòng thử lại.",
+    "downloadedVideos": "Video đã tải xuống",
+    "saveLocation": "Vị trí lưu",
+    "saveLocationSubtitle": "Thư viện > album ssdown",
+    "language": "Ngôn ngữ",
+    "selectedLanguage": "Tiếng Việt",
+    "selectLanguage": "Chọn ngôn ngữ",
+    "downloadPolicy": "Chính sách tải xuống",
+    "wifiOnlyTitle": "Chỉ tải xuống trên Wi-Fi",
+    "wifiOnlyOn": "Tải xuống sẽ chỉ bắt đầu trên Wi-Fi",
+    "wifiOnlyOff": "Cho phép tải xuống trên bất kỳ mạng nào",
+    "appInfo": "Thông tin ứng dụng",
+    "appVersion": "Phiên bản ứng dụng",
+    "about": "Giới thiệu",
+    "privacy": "Chính sách bảo mật",
+    "contact": "Liên hệ",
+    "misc": "Khác",
+    "openSystemSettings": "Mở cài đặt hệ thống",
+    "openSystemSettingsSubtitle": "Quyền và các cài đặt khác",
+    "urlOpenErrorTitle": "Lỗi",
+    "urlOpenErrorBody": "Không thể mở URL này.",
+    "urlOpenErrorBody2": "Không thể mở URL."
+  },
+  "guide": {
+    "title": "Cách tải video",
+    "introTitle": "4 bước đơn giản",
+    "introSubtitle": "Chỉ cần dán liên kết và tải xuống ngay lập tức.",
+    "steps": {
+      "copyTitle": "1. Sao chép",
+      "copyBody": "Sao chép liên kết chia sẻ (URL) của video bạn muốn tải xuống.",
+      "pasteTitle": "2. Dán",
+      "pasteBody": "Dán liên kết vào trường nhập Trang chủ và nhấn nút TẢI XUỐNG.",
+      "qualityTitle": "3. Chọn chất lượng",
+      "qualityBody": "Nhấn Tải xuống trên tùy chọn chất lượng/bitrate bạn muốn lưu.",
+      "saveTitle": "4. Vị trí đã lưu",
+      "saveBody": "Tìm video đã lưu trong album ssdown (thư viện) hoặc thư mục Tải xuống/ssdown."
+    }
+  },
+  "language": {
+    "selectLanguage": "Chọn ngôn ngữ",
+    "chooseLanguage": "Chọn ngôn ngữ ưa thích của bạn để tiếp tục."
+  }
+}
+

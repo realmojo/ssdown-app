@@ -8,6 +8,7 @@ import {
   BannerAdSize,
   TestIds,
 } from "react-native-google-mobile-ads";
+import { useLocale } from "../context/locale";
 // Android: ca-app-pub-9130836798889522/7917853154
 // iOS: ca-app-pub-9130836798889522/9641890567
 
@@ -51,6 +52,7 @@ const BannerAdComponent = () => {
   );
 };
 export default function TabLayout() {
+  const { t } = useLocale();
   return (
     <View style={{ flex: 1 }}>
       <Tabs
@@ -63,7 +65,7 @@ export default function TabLayout() {
             borderTopWidth: 1,
             borderTopColor: "#1f2937",
             paddingTop: 4,
-            paddingBottom: Platform.OS === "android" ? 0 : 8, // keep above Android nav buttons
+            paddingBottom: Platform.OS === "ios" ? 8 : 0, // keep above Android nav buttons
             height: BANNER_HEIGHT,
           },
           sceneStyle: {
@@ -79,7 +81,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="home"
           options={{
-            title: "Home",
+            title: t("tabs.home"),
             tabBarIcon: ({ color }) => (
               <IconSymbol size={24} name="house.fill" color={color} />
             ),
@@ -88,7 +90,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="downloads"
           options={{
-            title: "Downloads",
+            title: t("tabs.downloads"),
             tabBarIcon: ({ color }) => (
               <IconSymbol
                 size={24}
@@ -101,7 +103,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="settings"
           options={{
-            title: "Settings",
+            title: t("tabs.settings"),
             tabBarIcon: ({ color }) => (
               <IconSymbol size={24} name="gearshape.fill" color={color} />
             ),

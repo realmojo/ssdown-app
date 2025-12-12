@@ -7,19 +7,27 @@ import { Directory, File, Paths } from "expo-file-system";
 import { Image } from "expo-image";
 import * as MediaLibrary from "expo-media-library";
 import * as Network from "expo-network";
+import { useRouter } from "expo-router";
 import * as Sharing from "expo-sharing";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Linking,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
   View,
 } from "react-native";
+import {
+  AdEventType,
+  InterstitialAd,
+  TestIds,
+} from "react-native-google-mobile-ads";
 import { useDownloadPolicy } from "../context/download-policy";
+import { useLocale } from "../context/locale";
 
 interface DownloadResult {
   thumbnail?: string;
@@ -36,11 +44,19 @@ interface DownloadResult {
   downloads?: Array<{ id: string; label: string; url?: string }>;
 }
 
+const INTERSTITIAL_AD_UNIT_ID = __DEV__
+  ? TestIds.INTERSTITIAL
+  : Platform.OS === "ios"
+  ? "ca-app-pub-9130836798889522/7060103412"
+  : "ca-app-pub-9130836798889522/1791658388";
+
 export default function HomeScreen() {
+  const router = useRouter();
   const [url, setUrl] = useState(
     // "https://x.com/uahan2/status/1989118595876675673/video/1"
-    // "https://www.tiktok.com/@user58210557014162/video/7580653045323795733?is_from_webapp=1&sender_device=pc"
-    "https://www.facebook.com/share/r/1AFGYu1iFk/"
+    "https://www.tiktok.com/@user58210557014162/video/7580653045323795733?is_from_webapp=1&sender_device=pc"
+    // "https://www.facebook.com/share/r/1AFGYu1iFk/"
+    // "https://www.instagram.com/reel/DSH6XgujivL/?utm_source=ig_web_copy_link&igsh=NTc4MTIwNjQ2YQ=="
   );
   const [showResult, setShowResult] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -49,11 +65,82 @@ export default function HomeScreen() {
   );
   const [error, setError] = useState<string | null>(null);
   const [downloadingVideo, setDownloadingVideo] = useState<string | null>(null);
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
+  const [infoModal, setInfoModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+  }>({ visible: false, title: "", message: "" });
+  const [actionModal, setActionModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    onConfirm?: () => void;
+  }>({ visible: false, title: "", message: "" });
   const { wifiOnly } = useDownloadPolicy();
+  const { t } = useLocale();
+  const interstitialRef = useRef<InterstitialAd | null>(null);
+  const [interstitialLoaded, setInterstitialLoaded] = useState(false);
+
+  const showInfoModal = (title: string, message: string) => {
+    setInfoModal({ visible: true, title, message });
+  };
+
+  const showActionModal = (options: {
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    onConfirm?: () => void;
+  }) => {
+    setActionModal({
+      visible: true,
+      title: options.title,
+      message: options.message,
+      confirmLabel: options.confirmLabel ?? "Open settings",
+      cancelLabel: options.cancelLabel ?? "Cancel",
+      onConfirm: options.onConfirm,
+    });
+  };
+
+  useEffect(() => {
+    const interstitial = InterstitialAd.createForAdRequest(
+      INTERSTITIAL_AD_UNIT_ID,
+      { requestNonPersonalizedAdsOnly: true }
+    );
+
+    const loadedListener = interstitial.addAdEventListener(
+      AdEventType.LOADED,
+      () => setInterstitialLoaded(true)
+    );
+    const closedListener = interstitial.addAdEventListener(
+      AdEventType.CLOSED,
+      () => {
+        setSuccessModalVisible(false);
+        setInterstitialLoaded(false);
+        interstitial.load();
+      }
+    );
+    const errorListener = interstitial.addAdEventListener(
+      AdEventType.ERROR,
+      () => setInterstitialLoaded(false)
+    );
+
+    interstitial.load();
+    interstitialRef.current = interstitial;
+
+    return () => {
+      loadedListener();
+      closedListener();
+      errorListener();
+    };
+  }, []);
 
   const handleDownload = async () => {
     if (!url.trim()) {
-      Alert.alert("Error", "Please enter a URL");
+      showInfoModal(t("common.error"), t("home.missingUrl"));
       return;
     }
 
@@ -62,9 +149,8 @@ export default function HomeScreen() {
     setShowResult(false);
 
     const videoType = getVideoType(url);
-    console.log("videoType", videoType);
     if (videoType === "unknown") {
-      Alert.alert("Error", "Invalid URL");
+      showInfoModal(t("common.error"), t("home.invalidUrl"));
       return;
     }
 
@@ -79,10 +165,8 @@ export default function HomeScreen() {
 
       // Date formatting helper
       const formatDate = (dateString: string) => {
-        console.log("dateString", dateString);
         try {
           let date = new Date(dateString);
-          console.log("date", date);
           if (isNaN(date.getTime())) {
             date = new Date();
           }
@@ -172,7 +256,7 @@ export default function HomeScreen() {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to fetch video data";
       setError(errorMessage);
-      Alert.alert("Error", errorMessage);
+      showInfoModal(t("common.error"), errorMessage);
     } finally {
       setLoading(false);
     }
@@ -208,21 +292,19 @@ export default function HomeScreen() {
         message += "\n\nPlease enable it in settings.";
       }
 
-      Alert.alert("Storage permission required", message, [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Open settings",
-          onPress: () => {
-            Linking.openSettings();
-          },
-        },
-      ]);
+      showActionModal({
+        title: t("home.permissionRequiredTitle"),
+        message,
+        confirmLabel: t("common.ok"),
+        cancelLabel: t("common.cancel"),
+        onConfirm: () => Linking.openSettings(),
+      });
       return false;
     } catch (error) {
       console.error("Permission request error:", error);
-      Alert.alert(
-        "Permission error",
-        "An error occurred while requesting permission. Please try again."
+      showInfoModal(
+        t("home.permissionErrorTitle"),
+        t("home.permissionErrorBody")
       );
       return false;
     }
@@ -235,11 +317,11 @@ export default function HomeScreen() {
   ) => {
     const videoType = getVideoType(url);
     if (videoType === "unknown") {
-      Alert.alert("Error", "Invalid URL");
+      showInfoModal(t("common.error"), t("home.invalidUrl"));
       return;
     }
     if (!downloadUrl) {
-      Alert.alert("Error", "Download URL is not available");
+      showInfoModal(t("common.error"), t("home.missingDownloadUrl"));
       return;
     }
 
@@ -251,17 +333,17 @@ export default function HomeScreen() {
           !networkState.isConnected ||
           networkState.type !== Network.NetworkStateType.WIFI
         ) {
-          Alert.alert(
-            "Wi-Fi required",
-            "Downloads are limited to Wi-Fi. Please connect to Wi-Fi or disable the Wi-Fi-only setting in Settings."
+          showInfoModal(
+            t("home.wifiRequiredTitle"),
+            t("home.wifiRequiredBody")
           );
           return;
         }
       } catch (error) {
         console.warn("Network check failed:", error);
-        Alert.alert(
-          "Network check failed",
-          "Could not verify network type. Please check your connection and try again."
+        showInfoModal(
+          t("home.networkFailedTitle"),
+          t("home.networkFailedBody")
         );
         return;
       }
@@ -277,7 +359,6 @@ export default function HomeScreen() {
         return;
       }
 
-      console.log("videoType", videoType);
       // Build download API URL
       const apiDownloadUrl = `https://ssdown.app/api/${videoType}/download?videoUrl=${encodeURIComponent(
         downloadUrl
@@ -319,10 +400,7 @@ export default function HomeScreen() {
           await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
         }
 
-        Alert.alert(
-          "Download complete",
-          `The video has been saved to the ssdown album in your gallery.\n\nYou can find it in your gallery app.`
-        );
+        setSuccessModalVisible(true);
       } catch (mediaError) {
         // If MediaLibrary fails, fall back to sharing dialog
         console.error("MediaLibrary error:", mediaError);
@@ -334,7 +412,10 @@ export default function HomeScreen() {
             UTI: "public.movie",
           });
         } else {
-          Alert.alert("Download Complete", `Video saved to: ${tempFile.uri}`);
+          showInfoModal(
+            t("home.downloadCompleteTitle"),
+            `${t("home.downloadCompleteAltBody")} ${tempFile.uri}`
+          );
         }
       }
     } catch (err) {
@@ -342,7 +423,7 @@ export default function HomeScreen() {
         err instanceof Error
           ? err.message
           : "Failed to download video. Please try again.";
-      Alert.alert("Download Error", errorMessage);
+      showInfoModal(t("home.downloadErrorTitle"), errorMessage);
     } finally {
       setDownloadingVideo(null);
     }
@@ -379,241 +460,379 @@ export default function HomeScreen() {
   );
 
   return (
-    <ScrollView
-      style={styles.page}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.inputRow}>
-        <MaterialCommunityIcons name="earth" size={22} color="#9ca3af" />
-        <TextInput
-          value={url}
-          onChangeText={setUrl}
-          placeholder="URL 검색 또는 입력"
-          placeholderTextColor="#9ca3af"
-          inputMode="url"
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={styles.input}
-        />
-      </View>
-
-      {/* Download Button */}
-      <Pressable
-        style={[styles.searchButton, loading && styles.searchButtonDisabled]}
-        android_ripple={{ color: "rgba(255,255,255,0.14)" }}
-        onPress={handleDownload}
-        disabled={loading}
+    <>
+      <Modal
+        visible={infoModal.visible}
+        animationType="fade"
+        transparent
+        onRequestClose={() =>
+          setInfoModal((prev) => ({ ...prev, visible: false }))
+        }
       >
-        {loading ? (
-          <ActivityIndicator color="#fff" style={{ height: 24 }} /> // small size
-        ) : (
-          <ThemedText style={styles.searchButtonText}>DOWNLOAD</ThemedText>
-        )}
-      </Pressable>
-      <View style={styles.socialGrid}>
-        {socialButtons.map((item) => (
-          <Pressable
-            key={item.key}
-            style={styles.socialItem}
-            android_ripple={{ color: "rgba(255,255,255,0.08)" }}
-          >
-            <View
-              style={[styles.socialCircle, { backgroundColor: item.color }]}
-            >
-              {item.label === "X" && (
-                <FontAwesome6 name="x-twitter" size={28} color="#fff" />
-              )}
-              {item.label === "Tiktok" && (
-                <FontAwesome6 name="tiktok" size={28} color="#fff" />
-              )}
-              {item.label === "Facebook" && (
-                <FontAwesome6 name="facebook" size={28} color="#fff" />
-              )}
-              {item.label === "Instagram" && (
-                <FontAwesome6 name="instagram" size={28} color="#fff" />
-              )}
-            </View>
-            <ThemedText style={styles.socialLabel}>{item.label}</ThemedText>
-          </Pressable>
-        ))}
-      </View>
-      {/* <Pressable
-        style={styles.tipCard}
-        android_ripple={{ color: "rgba(255,255,255,0.08)" }}
-      >
-        <View style={styles.tipIcon}>
-          <MaterialIcons name="movie-creation" size={24} color="#0ea5e9" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <ThemedText style={styles.tipText}>
-            비디오를 다운로드하는 방법?
-          </ThemedText>
-        </View>
-        <MaterialIcons name="arrow-forward-ios" size={18} color="#e2e8f0" />
-      </Pressable> */}
-
-      {loading && !showResult && (
-        <View style={styles.surface}>
-          <ThemedText style={styles.skeletonLoadingText}>Loading...</ThemedText>
-          <View style={styles.skeletonThumb} />
-          <View style={styles.profileRow}>
-            <View style={styles.skeletonAvatar} />
-            <View style={{ flex: 1, gap: 6 }}>
-              <View style={styles.skeletonLine} />
-              <View style={[styles.skeletonLine, { width: "50%" }]} />
-            </View>
-            <View style={styles.skeletonPill} />
-          </View>
-          <View style={styles.skeletonLine} />
-          <View style={styles.skeletonStatsRow}>
-            {[0, 1, 2, 3].map((i) => (
-              <View key={i} style={styles.skeletonStatItem}>
-                <View style={styles.skeletonIcon} />
-                <View style={[styles.skeletonLine, { width: 40 }]} />
-              </View>
-            ))}
-          </View>
-          <View style={styles.skeletonDownloadRow} />
-          <View style={styles.skeletonDownloadRow} />
-          <View style={styles.skeletonDownloadRow} />
-        </View>
-      )}
-
-      {showResult && downloadResult && (
-        <View style={styles.surface}>
-          {downloadResult.thumbnail && (
-            <View style={styles.mediaCard}>
-              <Image
-                source={{ uri: downloadResult.thumbnail }}
-                style={styles.preview}
-                contentFit="cover"
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconCircle}>
+              <MaterialCommunityIcons
+                name="information-outline"
+                size={36}
+                color="#0ea5e9"
               />
             </View>
-          )}
-
-          {downloadResult.user && (
-            <View style={styles.profileRow}>
-              {downloadResult.user.avatar ? (
-                <Image
-                  source={{ uri: downloadResult.user.avatar }}
-                  style={styles.avatar}
-                  contentFit="cover"
-                />
-              ) : (
-                <View style={styles.avatar} />
-              )}
-              <View style={{ flex: 1 }}>
-                <ThemedText style={styles.profileName}>
-                  {downloadResult.user.name}
-                </ThemedText>
-                <ThemedText style={styles.profileHandle}>
-                  {downloadResult.user.handle}
-                </ThemedText>
-              </View>
-              {downloadResult.createdAt && (
-                <View style={styles.datePill}>
-                  <MaterialCommunityIcons
-                    name="calendar-blank-outline"
-                    size={18}
-                    color="#9aa7b8"
-                  />
-                  <ThemedText style={styles.dateText}>
-                    {downloadResult.createdAt}
-                  </ThemedText>
-                </View>
-              )}
+            <ThemedText style={styles.modalTitle}>{infoModal.title}</ThemedText>
+            <ThemedText style={styles.modalMessage}>
+              {infoModal.message}
+            </ThemedText>
+            <Pressable
+              style={styles.modalButton}
+              onPress={() =>
+                setInfoModal((prev) => ({ ...prev, visible: false }))
+              }
+              android_ripple={{ color: "#cbd5e1" }}
+            >
+              <ThemedText style={styles.modalButtonText}>확인</ThemedText>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={successModalVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setSuccessModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconCircle}>
+              <MaterialCommunityIcons
+                name="check-circle"
+                size={36}
+                color="#22c55e"
+              />
             </View>
-          )}
+            <ThemedText style={styles.modalTitle}>
+              {t("home.downloadCompleteTitle")}
+            </ThemedText>
+            <ThemedText style={styles.modalMessage}>
+              {t("home.downloadCompleteBody1")}
+            </ThemedText>
+            <ThemedText style={styles.modalMessage}>
+              {t("home.downloadCompleteBody2")}
+            </ThemedText>
+            <Pressable
+              style={styles.modalButton}
+              onPress={() => {
+                if (interstitialLoaded && interstitialRef.current) {
+                  interstitialRef.current.show();
+                } else {
+                  setSuccessModalVisible(false);
+                }
+              }}
+              android_ripple={{ color: "#cbd5e1" }}
+            >
+              <ThemedText style={styles.modalButtonText}>OK</ThemedText>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={actionModal.visible}
+        animationType="fade"
+        transparent
+        onRequestClose={() =>
+          setActionModal((prev) => ({ ...prev, visible: false }))
+        }
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconCircle}>
+              <MaterialCommunityIcons
+                name="information-outline"
+                size={36}
+                color="#0ea5e9"
+              />
+            </View>
+            <ThemedText style={styles.modalTitle}>
+              {actionModal.title}
+            </ThemedText>
+            <ThemedText style={styles.modalMessage}>
+              {actionModal.message}
+            </ThemedText>
+            <View style={{ flexDirection: "row", gap: 10, width: "100%" }}>
+              <Pressable
+                style={[styles.modalButton, { backgroundColor: "#e2e8f0" }]}
+                onPress={() =>
+                  setActionModal((prev) => ({ ...prev, visible: false }))
+                }
+                android_ripple={{ color: "#cbd5e1" }}
+              >
+                <ThemedText
+                  style={[styles.modalButtonText, { color: "#0f172a" }]}
+                >
+                  {actionModal.cancelLabel || "Cancel"}
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                style={styles.modalButton}
+                onPress={() => {
+                  const onConfirm = actionModal.onConfirm;
+                  setActionModal((prev) => ({ ...prev, visible: false }));
+                  onConfirm?.();
+                }}
+                android_ripple={{ color: "#cbd5e1" }}
+              >
+                <ThemedText style={styles.modalButtonText}>
+                  {actionModal.confirmLabel || "OK"}
+                </ThemedText>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <ScrollView
+        style={styles.page}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.inputRow}>
+          <MaterialCommunityIcons name="earth" size={22} color="#9ca3af" />
+          <TextInput
+            value={url}
+            onChangeText={setUrl}
+            placeholder={t("home.placeholder")}
+            placeholderTextColor="#9ca3af"
+            inputMode="url"
+            autoCapitalize="none"
+            autoCorrect={false}
+            style={styles.input}
+          />
+        </View>
 
-          {downloadResult.content && (
-            <ThemedText style={styles.contentText}>
-              {downloadResult.content}
+        {/* Download Button */}
+        <Pressable
+          style={[styles.searchButton, loading && styles.searchButtonDisabled]}
+          android_ripple={{ color: "rgba(255,255,255,0.14)" }}
+          onPress={handleDownload}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" style={{ height: 24 }} /> // small size
+          ) : (
+            <ThemedText style={styles.searchButtonText}>
+              {t("home.download")}
             </ThemedText>
           )}
+        </Pressable>
+        <View style={styles.socialGrid}>
+          {socialButtons.map((item) => (
+            <Pressable
+              key={item.key}
+              style={styles.socialItem}
+              android_ripple={{ color: "rgba(255,255,255,0.08)" }}
+            >
+              <View
+                style={[styles.socialCircle, { backgroundColor: item.color }]}
+              >
+                {item.label === "X" && (
+                  <FontAwesome6 name="x-twitter" size={28} color="#fff" />
+                )}
+                {item.label === "Tiktok" && (
+                  <FontAwesome6 name="tiktok" size={28} color="#fff" />
+                )}
+                {item.label === "Facebook" && (
+                  <FontAwesome6 name="facebook" size={28} color="#fff" />
+                )}
+                {item.label === "Instagram" && (
+                  <FontAwesome6 name="instagram" size={28} color="#fff" />
+                )}
+              </View>
+              <ThemedText style={styles.socialLabel}>{item.label}</ThemedText>
+            </Pressable>
+          ))}
+        </View>
 
-          {downloadResult.stats && downloadResult.stats.length > 0 && (
-            <View style={styles.statsRow}>
-              {downloadResult.stats.map((item) => (
-                <View key={item.key} style={styles.statItem}>
-                  <MaterialCommunityIcons
-                    name={item.icon as any}
-                    size={22}
-                    color={item.color}
-                  />
-                  <ThemedText style={[styles.statValue, { color: item.color }]}>
-                    {item.value}
-                  </ThemedText>
+        <Pressable
+          style={styles.tipCard}
+          android_ripple={{ color: "rgba(255,255,255,0.08)" }}
+          onPress={() => router.push("/download-guide" as const)}
+        >
+          <View style={styles.tipIcon}>
+            <MaterialIcons name="movie-creation" size={24} color="#0ea5e9" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <ThemedText style={styles.tipText}>{t("guide.title")}</ThemedText>
+          </View>
+          <MaterialIcons name="arrow-forward-ios" size={18} color="#e2e8f0" />
+        </Pressable>
+
+        {loading && !showResult && (
+          <View style={styles.surface}>
+            <ThemedText style={styles.skeletonLoadingText}>
+              Loading...
+            </ThemedText>
+            <View style={styles.skeletonThumb} />
+            <View style={styles.profileRow}>
+              <View style={styles.skeletonAvatar} />
+              <View style={{ flex: 1, gap: 6 }}>
+                <View style={styles.skeletonLine} />
+                <View style={[styles.skeletonLine, { width: "50%" }]} />
+              </View>
+              <View style={styles.skeletonPill} />
+            </View>
+            <View style={styles.skeletonLine} />
+            <View style={styles.skeletonStatsRow}>
+              {[0, 1, 2, 3].map((i) => (
+                <View key={i} style={styles.skeletonStatItem}>
+                  <View style={styles.skeletonIcon} />
+                  <View style={[styles.skeletonLine, { width: 40 }]} />
                 </View>
               ))}
             </View>
-          )}
+            <View style={styles.skeletonDownloadRow} />
+            <View style={styles.skeletonDownloadRow} />
+            <View style={styles.skeletonDownloadRow} />
+          </View>
+        )}
 
-          {downloadResult.downloads && downloadResult.downloads.length > 0 && (
-            <>
-              <View style={styles.downloadHeader}>
-                <ThemedText style={styles.sectionTitle}>
-                  DOWNLOAD OPTIONS
-                </ThemedText>
+        {showResult && downloadResult && (
+          <View style={styles.surface}>
+            {downloadResult.thumbnail && (
+              <View style={styles.mediaCard}>
+                <Image
+                  source={{ uri: downloadResult.thumbnail }}
+                  style={styles.preview}
+                  contentFit="cover"
+                />
               </View>
+            )}
 
-              <View style={styles.downloadList}>
-                {downloadResult.downloads.map((item, index) => (
-                  <View key={item.id || index} style={styles.downloadRow}>
-                    <View style={styles.dot} />
-                    <ThemedText style={styles.quality}>
-                      {item.label || item.id || `Option ${index + 1}`}
+            {downloadResult.user && (
+              <View style={styles.profileRow}>
+                {downloadResult.user.avatar ? (
+                  <Image
+                    source={{ uri: downloadResult.user.avatar }}
+                    style={styles.avatar}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <View style={styles.avatar} />
+                )}
+                <View style={{ flex: 1 }}>
+                  <ThemedText style={styles.profileName}>
+                    {downloadResult.user.name}
+                  </ThemedText>
+                  <ThemedText style={styles.profileHandle}>
+                    {downloadResult.user.handle}
+                  </ThemedText>
+                </View>
+                {downloadResult.createdAt && (
+                  <View style={styles.datePill}>
+                    <MaterialCommunityIcons
+                      name="calendar-blank-outline"
+                      size={18}
+                      color="#9aa7b8"
+                    />
+                    <ThemedText style={styles.dateText}>
+                      {downloadResult.createdAt}
                     </ThemedText>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.downloadButton,
-                        pressed && styles.downloadButtonPressed,
-                        downloadingVideo === (item.id || index.toString()) &&
-                          styles.downloadButtonDisabled,
-                      ]}
-                      android_ripple={{ color: "#ffd6f2" }}
-                      onPress={() => {
-                        if (item.url && !downloadingVideo) {
-                          handleVideoDownload(
-                            item.url,
-                            item.label || item.id || "video",
-                            item.id || index.toString()
-                          );
-                        }
-                      }}
-                      disabled={
-                        !!downloadingVideo &&
-                        downloadingVideo === (item.id || index.toString())
-                      }
+                  </View>
+                )}
+              </View>
+            )}
+
+            {downloadResult.content && (
+              <ThemedText style={styles.contentText}>
+                {downloadResult.content}
+              </ThemedText>
+            )}
+
+            {downloadResult.stats && downloadResult.stats.length > 0 && (
+              <View style={styles.statsRow}>
+                {downloadResult.stats.map((item) => (
+                  <View key={item.key} style={styles.statItem}>
+                    <MaterialCommunityIcons
+                      name={item.icon as any}
+                      size={22}
+                      color={item.color}
+                    />
+                    <ThemedText
+                      style={[styles.statValue, { color: item.color }]}
                     >
-                      {downloadingVideo === (item.id || index.toString()) ? (
-                        <ActivityIndicator size="small" color="#e6007a" />
-                      ) : (
-                        <>
-                          <ThemedText style={styles.downloadText}>
-                            Download
-                          </ThemedText>
-                          <MaterialIcons
-                            name="file-download"
-                            size={20}
-                            color="#e6007a"
-                          />
-                        </>
-                      )}
-                    </Pressable>
+                      {item.value}
+                    </ThemedText>
                   </View>
                 ))}
               </View>
-            </>
-          )}
-        </View>
-      )}
-      {error && (
-        <View style={styles.surface}>
-          <ThemedText style={styles.errorText}>{error}</ThemedText>
-        </View>
-      )}
-    </ScrollView>
+            )}
+
+            {downloadResult.downloads &&
+              downloadResult.downloads.length > 0 && (
+                <>
+                  <View style={styles.downloadHeader}>
+                    <ThemedText style={styles.sectionTitle}>
+                      DOWNLOAD OPTIONS
+                    </ThemedText>
+                  </View>
+
+                  <View style={styles.downloadList}>
+                    {downloadResult.downloads.map((item, index) => (
+                      <View key={item.id || index} style={styles.downloadRow}>
+                        <View style={styles.dot} />
+                        <ThemedText style={styles.quality}>
+                          {item.label || item.id || `Option ${index + 1}`}
+                        </ThemedText>
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.downloadButton,
+                            pressed && styles.downloadButtonPressed,
+                            downloadingVideo ===
+                              (item.id || index.toString()) &&
+                              styles.downloadButtonDisabled,
+                          ]}
+                          android_ripple={{ color: "#ffd6f2" }}
+                          onPress={() => {
+                            if (item.url && !downloadingVideo) {
+                              handleVideoDownload(
+                                item.url,
+                                item.label || item.id || "video",
+                                item.id || index.toString()
+                              );
+                            }
+                          }}
+                          disabled={
+                            !!downloadingVideo &&
+                            downloadingVideo === (item.id || index.toString())
+                          }
+                        >
+                          {downloadingVideo ===
+                          (item.id || index.toString()) ? (
+                            <ActivityIndicator size="small" color="#e6007a" />
+                          ) : (
+                            <>
+                              <ThemedText style={styles.downloadText}>
+                                Download
+                              </ThemedText>
+                              <MaterialIcons
+                                name="file-download"
+                                size={20}
+                                color="#e6007a"
+                              />
+                            </>
+                          )}
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                </>
+              )}
+          </View>
+        )}
+        {error && (
+          <View style={styles.surface}>
+            <ThemedText style={styles.errorText}>{error}</ThemedText>
+          </View>
+        )}
+      </ScrollView>
+    </>
   );
 }
 
@@ -923,5 +1142,56 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "transparent",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  modalCard: {
+    width: "100%",
+    borderRadius: 16,
+    backgroundColor: "#0f172a",
+    padding: 20,
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#1f2937",
+  },
+  modalIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(34,197,94,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#f8fafc",
+    marginTop: 4,
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: "#cbd5e1",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  modalButton: {
+    marginTop: 4,
+    backgroundColor: "#22c55e",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 12,
+    width: "100%",
+    alignItems: "center",
+  },
+  modalButtonText: {
+    color: "#0f172a",
+    fontSize: 15,
+    fontWeight: "800",
   },
 });

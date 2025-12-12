@@ -9,7 +9,6 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   FlatList,
   Modal,
@@ -19,11 +18,11 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+import { useLocale } from "../context/locale";
 
 import { Colors } from "@/constants/theme";
 
 const { width } = Dimensions.get("window");
-// Two-column grid; 24px padding on both sides
 const ITEM_SIZE = (width - 48) / 2;
 type ExtendedAsset = MediaLibrary.Asset & { sizeLabel?: string };
 
@@ -44,6 +43,24 @@ export default function DownloadsScreen() {
   const [filterType, setFilterType] = useState<
     "all" | "x" | "tiktok" | "facebook" | "instagram"
   >("all");
+  const [infoModal, setInfoModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+  }>({ visible: false, title: "", message: "" });
+  const [confirmModal, setConfirmModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    onConfirm?: () => void;
+  }>({ visible: false, title: "", message: "" });
+  const [errorModal, setErrorModal] = useState<{
+    visible: boolean;
+    message: string;
+  }>({ visible: false, message: "" });
+  const { t } = useLocale();
 
   const loadVideos = useCallback(async () => {
     try {
@@ -84,7 +101,10 @@ export default function DownloadsScreen() {
       setVideos(assetsWithSize);
     } catch (error) {
       console.error("Error loading videos:", error);
-      Alert.alert("Error", "Failed to load the video list.");
+      setErrorModal({
+        visible: true,
+        message: "Failed to load the video list.",
+      });
       setVideos([]);
     } finally {
       setLoading(false);
@@ -126,11 +146,19 @@ export default function DownloadsScreen() {
           dialogTitle: "Share video",
         });
       } else {
-        Alert.alert("Notice", "Sharing is not available.");
+        setInfoModal({
+          visible: true,
+          title: "Notice",
+          message: "Sharing is not available.",
+        });
       }
     } catch (error) {
       console.error("Error sharing video:", error);
-      Alert.alert("Error", "An error occurred while sharing the video.");
+      setInfoModal({
+        visible: true,
+        title: "Error",
+        message: "An error occurred while sharing the video.",
+      });
     }
   };
 
@@ -150,29 +178,33 @@ export default function DownloadsScreen() {
 
   const handleDeleteAction = async () => {
     if (!actionAsset) return;
-    Alert.alert("Delete video", "Are you sure you want to delete this video?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await MediaLibrary.deleteAssetsAsync([actionAsset.id]);
-            setVideos((prev) => prev.filter((v) => v.id !== actionAsset.id));
-            setSelectedIds((prev) => {
-              const next = new Set(prev);
-              next.delete(actionAsset.id);
-              return next;
-            });
-          } catch (error) {
-            console.error("Error deleting video:", error);
-            Alert.alert("Error", "Failed to delete video.");
-          } finally {
-            closeActionMenu();
-          }
-        },
+    setConfirmModal({
+      visible: true,
+      title: "Delete video",
+      message: "Are you sure you want to delete this video?",
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      onConfirm: async () => {
+        try {
+          await MediaLibrary.deleteAssetsAsync([actionAsset.id]);
+          setVideos((prev) => prev.filter((v) => v.id !== actionAsset.id));
+          setSelectedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(actionAsset.id);
+            return next;
+          });
+        } catch (error) {
+          console.error("Error deleting video:", error);
+          setInfoModal({
+            visible: true,
+            title: "Error",
+            message: "Failed to delete video.",
+          });
+        } finally {
+          closeActionMenu();
+        }
       },
-    ]);
+    });
   };
 
   const toggleSelect = (asset: MediaLibrary.Asset) => {
@@ -198,27 +230,27 @@ export default function DownloadsScreen() {
 
   const deleteSelected = async () => {
     if (selectedIds.size === 0) return;
-    Alert.alert(
-      "Delete videos",
-      `Are you sure you want to delete ${selectedIds.size} video(s)?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await MediaLibrary.deleteAssetsAsync(Array.from(selectedIds));
-              setVideos((prev) => prev.filter((v) => !selectedIds.has(v.id)));
-              clearSelection();
-            } catch (error) {
-              console.error("Error deleting videos:", error);
-              Alert.alert("Error", "Failed to delete videos.");
-            }
-          },
-        },
-      ]
-    );
+    setConfirmModal({
+      visible: true,
+      title: "Delete videos",
+      message: `Are you sure you want to delete ${selectedIds.size} video(s)?`,
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      onConfirm: async () => {
+        try {
+          await MediaLibrary.deleteAssetsAsync(Array.from(selectedIds));
+          setVideos((prev) => prev.filter((v) => !selectedIds.has(v.id)));
+          clearSelection();
+        } catch (error) {
+          console.error("Error deleting videos:", error);
+          setInfoModal({
+            visible: true,
+            title: "Error",
+            message: "Failed to delete videos.",
+          });
+        }
+      },
+    });
   };
 
   const closeVideoPlayer = () => {
@@ -260,6 +292,137 @@ export default function DownloadsScreen() {
   );
 
   const filteredVideos = filterVideos(videos);
+
+  const renderModals = () => (
+    <>
+      <Modal
+        visible={errorModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setErrorModal((prev) => ({ ...prev, visible: false }))
+        }
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View
+              style={[styles.modalIconCircle, { backgroundColor: "#fee2e2" }]}
+            >
+              <MaterialCommunityIcons
+                name="alert-circle-outline"
+                size={32}
+                color="#ef4444"
+              />
+            </View>
+            <ThemedText style={styles.modalTitle}>Error</ThemedText>
+            <ThemedText style={styles.modalMessage}>
+              {errorModal.message}
+            </ThemedText>
+            <Pressable
+              style={styles.modalButton}
+              onPress={() =>
+                setErrorModal((prev) => ({ ...prev, visible: false }))
+              }
+              android_ripple={{ color: "#fee2e2" }}
+            >
+              <ThemedText style={styles.modalButtonText}>OK</ThemedText>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={infoModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setInfoModal((prev) => ({ ...prev, visible: false }))
+        }
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View
+              style={[styles.modalIconCircle, { backgroundColor: "#e0f2fe" }]}
+            >
+              <MaterialCommunityIcons
+                name="information-outline"
+                size={32}
+                color="#0ea5e9"
+              />
+            </View>
+            <ThemedText style={styles.modalTitle}>{infoModal.title}</ThemedText>
+            <ThemedText style={styles.modalMessage}>
+              {infoModal.message}
+            </ThemedText>
+            <Pressable
+              style={styles.modalButton}
+              onPress={() =>
+                setInfoModal((prev) => ({ ...prev, visible: false }))
+              }
+              android_ripple={{ color: "#e3ebf5" }}
+            >
+              <ThemedText style={styles.modalButtonText}>OK</ThemedText>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={confirmModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setConfirmModal((prev) => ({ ...prev, visible: false }))
+        }
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View
+              style={[styles.modalIconCircle, { backgroundColor: "#fff7ed" }]}
+            >
+              <MaterialCommunityIcons
+                name="help-circle-outline"
+                size={32}
+                color="#f97316"
+              />
+            </View>
+            <ThemedText style={styles.modalTitle}>
+              {confirmModal.title}
+            </ThemedText>
+            <ThemedText style={styles.modalMessage}>
+              {confirmModal.message}
+            </ThemedText>
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonSecondary]}
+                onPress={() =>
+                  setConfirmModal((prev) => ({ ...prev, visible: false }))
+                }
+                android_ripple={{ color: "#e3ebf5" }}
+              >
+                <ThemedText
+                  style={[styles.modalButtonText, { color: "#0f172a" }]}
+                >
+                  {confirmModal.cancelLabel || "Cancel"}
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonDestructive]}
+                onPress={async () => {
+                  const onConfirm = confirmModal.onConfirm;
+                  setConfirmModal((prev) => ({ ...prev, visible: false }));
+                  await onConfirm?.();
+                }}
+                android_ripple={{ color: "#fee2e2" }}
+              >
+                <ThemedText style={styles.modalButtonText}>
+                  {confirmModal.confirmLabel || "OK"}
+                </ThemedText>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
 
   const renderVideoItem = ({ item }: { item: ExtendedAsset }) => {
     const isList = viewMode === "list";
@@ -355,34 +518,43 @@ export default function DownloadsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1d8fff" />
-        <ThemedText style={styles.loadingText}>Loading videos...</ThemedText>
-      </View>
+      <>
+        {renderModals()}
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#1d8fff" />
+          <ThemedText style={styles.loadingText}>
+            {t("downloads.loading")}
+          </ThemedText>
+        </View>
+      </>
     );
   }
 
   if (videos.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <MaterialCommunityIcons
-          name="folder-outline"
-          size={80}
-          color="#cbd5e1"
-        />
-        <ThemedText style={styles.emptyTitle}>
-          No downloaded videos yet
-        </ThemedText>
-        <ThemedText style={styles.emptySubtitle}>
-          Download videos from Home to see them here.
-        </ThemedText>
-      </View>
+      <>
+        {renderModals()}
+        <View style={styles.emptyContainer}>
+          <MaterialCommunityIcons
+            name="folder-outline"
+            size={80}
+            color="#cbd5e1"
+          />
+          <ThemedText style={styles.emptyTitle}>
+            {t("downloads.emptyTitle")}
+          </ThemedText>
+          <ThemedText style={styles.emptySubtitle}>
+            {t("downloads.emptySubtitle")}
+          </ThemedText>
+        </View>
+      </>
     );
   }
 
   if (filteredVideos.length === 0 && videos.length > 0) {
     return (
       <>
+        {renderModals()}
         <View style={styles.headerBar}>
           <Pressable
             style={[
@@ -492,9 +664,11 @@ export default function DownloadsScreen() {
             size={80}
             color="#cbd5e1"
           />
-          <ThemedText style={styles.emptyTitle}>No videos found</ThemedText>
+          <ThemedText style={styles.emptyTitle}>
+            {t("downloads.filterEmptyTitle")}
+          </ThemedText>
           <ThemedText style={styles.emptySubtitle}>
-            Try selecting a different filter.
+            {t("downloads.filterEmptySubtitle")}
           </ThemedText>
         </View>
       </>
@@ -503,6 +677,7 @@ export default function DownloadsScreen() {
 
   return (
     <>
+      {renderModals()}
       <View style={styles.headerBar}>
         <Pressable
           style={[
@@ -1124,5 +1299,69 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#0f172a",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  modalCard: {
+    width: "100%",
+    borderRadius: 16,
+    backgroundColor: "#ffffff",
+    padding: 20,
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  modalIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#0f172a",
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: "#475569",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  modalButton: {
+    marginTop: 4,
+    backgroundColor: "#1d8fff",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 12,
+    width: "100%",
+    alignItems: "center",
+  },
+  modalButtonText: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 10,
+    width: "100%",
+  },
+  modalButtonSecondary: {
+    backgroundColor: "#e2e8f0",
+  },
+  modalButtonDestructive: {
+    backgroundColor: "#ef4444",
   },
 });

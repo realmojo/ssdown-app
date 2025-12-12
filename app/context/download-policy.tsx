@@ -87,3 +87,7 @@ export function DownloadPolicyProvider({ children }: { children: ReactNode }) {
 export function useDownloadPolicy() {
   return useContext(DownloadPolicyContext);
 }
+
+// Default export to satisfy Expo Router route checks when this file is imported
+// as a module rather than a screen.
+export default DownloadPolicyProvider;

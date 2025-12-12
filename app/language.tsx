@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack, useRouter } from "expo-router";
 import { useState } from "react";
 import {
@@ -11,38 +10,36 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
+import { LanguageCode, useLocale } from "./context/locale";
 
-const LANGUAGES = [
+const LANGUAGES: { code: LanguageCode; label: string }[] = [
   { code: "en", label: "English" },
   { code: "ko", label: "한국어" },
+  { code: "jp", label: "日本語" },
   { code: "pt", label: "Português" },
-  { code: "ja", label: "日本語" },
   { code: "fr", label: "Français" },
   { code: "vi", label: "Tiếng Việt" },
-] as const;
+  { code: "es", label: "Español" },
+];
 
 export default function LanguageScreen() {
   const router = useRouter();
+  const { language, setLanguage } = useLocale();
   const [saving, setSaving] = useState(false);
-  const [selected, setSelected] = useState<string | null>(null);
-
-  const persistLanguage = async (code: string) => {
-    try {
-      await AsyncStorage.setItem("app_language", code);
-    } catch (error) {
-      console.warn("Failed to save language:", error);
-      throw error;
-    }
-  };
+  const [selected, setSelected] = useState<LanguageCode | null>(
+    language ?? "en"
+  );
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Hide the header entirely on language selection */}
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.header}>
-        <ThemedText style={styles.title}>Select language</ThemedText>
+        <ThemedText style={styles.title}>
+          {t("language.selectLanguage")}
+        </ThemedText>
         <ThemedText style={styles.subtitle}>
-          Choose your preferred language to continue.
+          {t("language.chooseLanguage")}
         </ThemedText>
       </View>
 
@@ -81,7 +78,7 @@ export default function LanguageScreen() {
           if (!selected) return;
           setSaving(true);
           try {
-            await persistLanguage(selected);
+            await setLanguage(selected);
             router.replace("/(tabs)/home");
           } catch {
             // error already logged

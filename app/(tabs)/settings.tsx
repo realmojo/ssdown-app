@@ -7,8 +7,8 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Linking,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,15 +16,51 @@ import {
   View,
 } from "react-native";
 import { useDownloadPolicy } from "../context/download-policy";
+import { useLocale } from "../context/locale";
 
 export default function SettingsScreen() {
+  const { t, language } = useLocale();
   const router = useRouter();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [checkingPermission, setCheckingPermission] = useState(true);
   const [videoCount, setVideoCount] = useState(0);
-  const [language, setLanguage] = useState<string | null>(null);
   const { wifiOnly, setWifiOnly } = useDownloadPolicy();
   const WIFI_POLICY_KEY = "download_wifi_only";
+  const [successModal, setSuccessModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+  }>({ visible: false, title: "", message: "" });
+  const showInfoModal = (title: string, message: string) =>
+    setInfoModal({ visible: true, title, message });
+  const showActionModal = (options: {
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    onConfirm?: () => void;
+  }) =>
+    setActionModal({
+      visible: true,
+      title: options.title,
+      message: options.message,
+      confirmLabel: options.confirmLabel ?? "Open settings",
+      cancelLabel: options.cancelLabel ?? "Cancel",
+      onConfirm: options.onConfirm,
+    });
+  const [infoModal, setInfoModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+  }>({ visible: false, title: "", message: "" });
+  const [actionModal, setActionModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    onConfirm?: () => void;
+  }>({ visible: false, title: "", message: "" });
 
   const checkPermission = useCallback(async () => {
     try {
@@ -62,14 +98,6 @@ export default function SettingsScreen() {
     loadVideoCount();
     (async () => {
       try {
-        const stored = await AsyncStorage.getItem("app_language");
-        if (stored) setLanguage(stored);
-      } catch (error) {
-        console.warn("Failed to load language:", error);
-      }
-    })();
-    (async () => {
-      try {
         const storedWifi = await AsyncStorage.getItem(WIFI_POLICY_KEY);
         if (storedWifi !== null) {
           setWifiOnly(storedWifi === "true");
@@ -93,23 +121,24 @@ export default function SettingsScreen() {
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status === "granted") {
         setHasPermission(true);
-        Alert.alert("Success", "Storage permission granted.");
+        setSuccessModal({
+          visible: true,
+          title: "Success",
+          message: "Storage permission granted.",
+        });
       } else {
-        Alert.alert(
-          "Permission needed",
-          "Storage permission is required to save videos. Please allow it in settings.",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Open settings",
-              onPress: () => Linking.openSettings(),
-            },
-          ]
-        );
+        showActionModal({
+          title: "Permission needed",
+          message:
+            "Storage permission is required to save videos. Please allow it in settings.",
+          confirmLabel: "Open settings",
+          cancelLabel: "Cancel",
+          onConfirm: () => Linking.openSettings(),
+        });
       }
     } catch (error) {
       console.error("Error requesting permission:", error);
-      Alert.alert(
+      showInfoModal(
         "Error",
         "An error occurred while requesting permissions. Please try again."
       );
@@ -126,11 +155,11 @@ export default function SettingsScreen() {
       if (canOpen) {
         await Linking.openURL(url);
       } else {
-        Alert.alert("Error", "Cannot open this URL.");
+        showInfoModal("Error", "Cannot open this URL.");
       }
     } catch (error) {
       console.error("Error opening URL:", error);
-      Alert.alert("Error", "Failed to open URL.");
+      showInfoModal("Error", "Failed to open URL.");
     }
   };
 
@@ -171,58 +200,183 @@ export default function SettingsScreen() {
   );
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Permission section */}
-      <View style={styles.section}>
-        <ThemedText style={styles.sectionTitle}>Permissions</ThemedText>
-        <View style={styles.surface}>
-          <View style={styles.settingItem}>
-            <View style={styles.settingIcon}>
+    <>
+      <Modal
+        visible={infoModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setInfoModal((prev) => ({ ...prev, visible: false }))
+        }
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconCircle}>
               <MaterialCommunityIcons
-                name="folder-lock-outline"
-                size={24}
-                color="#1d8fff"
+                name="information-outline"
+                size={36}
+                color="#0ea5e9"
               />
             </View>
-            <View style={styles.settingContent}>
-              <ThemedText style={styles.settingTitle}>
-                Storage permission
-              </ThemedText>
-              <ThemedText style={styles.settingSubtitle}>
-                {checkingPermission
-                  ? "Checking..."
-                  : hasPermission
-                  ? "Permission granted"
-                  : "Permission required"}
-              </ThemedText>
-            </View>
-            {checkingPermission ? (
-              <ActivityIndicator size="small" color="#1d8fff" />
-            ) : !hasPermission ? (
-              <Pressable
-                style={styles.permissionButton}
-                onPress={requestPermission}
-              >
-                <ThemedText style={styles.permissionButtonText}>
-                  Allow
-                </ThemedText>
-              </Pressable>
-            ) : (
-              <MaterialCommunityIcons
-                name="check-circle"
-                size={24}
-                color="#1eb980"
-              />
-            )}
+            <ThemedText style={styles.modalTitle}>{infoModal.title}</ThemedText>
+            <ThemedText style={styles.modalMessage}>
+              {infoModal.message}
+            </ThemedText>
+            <Pressable
+              style={styles.modalButton}
+              onPress={() =>
+                setInfoModal((prev) => ({ ...prev, visible: false }))
+              }
+              android_ripple={{ color: "#cbd5e1" }}
+            >
+              <ThemedText style={styles.modalButtonText}>OK</ThemedText>
+            </Pressable>
           </View>
         </View>
-      </View>
+      </Modal>
+      <Modal
+        visible={actionModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setActionModal((prev) => ({ ...prev, visible: false }))
+        }
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconCircle}>
+              <MaterialCommunityIcons
+                name="alert-circle-outline"
+                size={36}
+                color="#f97316"
+              />
+            </View>
+            <ThemedText style={styles.modalTitle}>
+              {actionModal.title}
+            </ThemedText>
+            <ThemedText style={styles.modalMessage}>
+              {actionModal.message}
+            </ThemedText>
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonSecondary]}
+                onPress={() =>
+                  setActionModal((prev) => ({ ...prev, visible: false }))
+                }
+                android_ripple={{ color: "#e3ebf5" }}
+              >
+                <ThemedText
+                  style={[styles.modalButtonText, { color: "#0f172a" }]}
+                >
+                  {actionModal.cancelLabel || "Cancel"}
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonDestructive]}
+                onPress={() => {
+                  const onConfirm = actionModal.onConfirm;
+                  setActionModal((prev) => ({ ...prev, visible: false }));
+                  onConfirm?.();
+                }}
+                android_ripple={{ color: "#fee2e2" }}
+              >
+                <ThemedText style={styles.modalButtonText}>
+                  {actionModal.confirmLabel || "OK"}
+                </ThemedText>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={successModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setSuccessModal((prev) => ({ ...prev, visible: false }))
+        }
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconCircle}>
+              <MaterialCommunityIcons
+                name="check-circle"
+                size={36}
+                color="#22c55e"
+              />
+            </View>
+            <ThemedText style={styles.modalTitle}>
+              {successModal.title}
+            </ThemedText>
+            <ThemedText style={styles.modalMessage}>
+              {successModal.message}
+            </ThemedText>
+            <Pressable
+              style={styles.modalButton}
+              onPress={() =>
+                setSuccessModal((prev) => ({ ...prev, visible: false }))
+              }
+              android_ripple={{ color: "#cbd5e1" }}
+            >
+              <ThemedText style={styles.modalButtonText}>OK</ThemedText>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Permission section */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>
+            {t("settings.permissions")}
+          </ThemedText>
+          <View style={styles.surface}>
+            <View style={styles.settingItem}>
+              <View style={styles.settingIcon}>
+                <MaterialCommunityIcons
+                  name="folder-lock-outline"
+                  size={24}
+                  color="#1d8fff"
+                />
+              </View>
+              <View style={styles.settingContent}>
+                <ThemedText style={styles.settingTitle}>
+                  {t("settings.storagePermission")}
+                </ThemedText>
+                <ThemedText style={styles.settingSubtitle}>
+                  {checkingPermission
+                    ? t("settings.checking")
+                    : hasPermission
+                    ? t("settings.permissionGranted")
+                    : t("settings.permissionRequired")}
+                </ThemedText>
+              </View>
+              {checkingPermission ? (
+                <ActivityIndicator size="small" color="#1d8fff" />
+              ) : !hasPermission ? (
+                <Pressable
+                  style={styles.permissionButton}
+                  onPress={requestPermission}
+                >
+                  <ThemedText style={styles.permissionButtonText}>
+                    {t("common.allow")}
+                  </ThemedText>
+                </Pressable>
+              ) : (
+                <MaterialCommunityIcons
+                  name="check-circle"
+                  size={24}
+                  color="#1eb980"
+                />
+              )}
+            </View>
+          </View>
+        </View>
 
-      {/* Storage section */}
-      <View style={styles.section}>
+        {/* Storage section */}
+        {/* <View style={styles.section}>
         <ThemedText style={styles.sectionTitle}>Storage</ThemedText>
         <View style={styles.surface}>
           <SettingItem
@@ -236,86 +390,98 @@ export default function SettingsScreen() {
             subtitle="Gallery > ssdown album"
           />
         </View>
-      </View>
+      </View> */}
 
-      {/* Language section */}
-      <View style={styles.section}>
-        <ThemedText style={styles.sectionTitle}>Language</ThemedText>
-        <View style={styles.surface}>
-          <SettingItem
-            icon="translate"
-            title="Language"
-            subtitle={language || "Select language"}
-            onPress={() => router.push("/language")}
-          />
+        {/* Language section */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>
+            {t("settings.language")}
+          </ThemedText>
+          <View style={styles.surface}>
+            <SettingItem
+              icon="translate"
+              title={t("settings.language")}
+              subtitle={t("settings.selectedLanguage")}
+              onPress={() => router.push("/language")}
+            />
+          </View>
         </View>
-      </View>
 
-      {/* Download policy */}
-      <View style={styles.section}>
-        <ThemedText style={styles.sectionTitle}>Download policy</ThemedText>
-        <View style={styles.surface}>
-          <SettingItem
-            icon="wifi"
-            title="Download on Wi-Fi only"
-            subtitle={
-              wifiOnly
-                ? "Downloads will start only on Wi-Fi"
-                : "Allow downloads on any network"
-            }
-            rightComponent={
-              <Switch
-                value={wifiOnly}
-                onValueChange={handleWifiToggle}
-                trackColor={{ true: "#1eb980", false: "#cbd5e1" }}
-                thumbColor={wifiOnly ? "#0f172a" : "#f8fafc"}
-              />
-            }
-            showArrow={false}
-          />
+        {/* Download policy */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>
+            {t("settings.downloadPolicy")}
+          </ThemedText>
+          <View style={styles.surface}>
+            <SettingItem
+              icon="wifi"
+              title={t("settings.wifiOnlyTitle")}
+              subtitle={
+                wifiOnly ? t("settings.wifiOnlyOn") : t("settings.wifiOnlyOff")
+              }
+              rightComponent={
+                <Switch
+                  value={wifiOnly}
+                  onValueChange={handleWifiToggle}
+                  trackColor={{ true: "#1eb980", false: "#cbd5e1" }}
+                  thumbColor={wifiOnly ? "#0f172a" : "#f8fafc"}
+                />
+              }
+              showArrow={false}
+            />
+          </View>
         </View>
-      </View>
 
-      {/* App info section */}
-      <View style={styles.section}>
-        <ThemedText style={styles.sectionTitle}>App info</ThemedText>
-        <View style={styles.surface}>
-          <SettingItem
-            icon="information-outline"
-            title="App version"
-            subtitle={Constants.expoConfig?.version || "1.0.0"}
-          />
-          <SettingItem
-            icon="information"
-            title="About"
-            onPress={() => openURL("https://ssdown.app/about")}
-          />
-          <SettingItem
-            icon="shield-check-outline"
-            title="Privacy policy"
-            onPress={() => openURL("https://ssdown.app/privacy")}
-          />
-          <SettingItem
-            icon="email-outline"
-            title="Contact"
-            onPress={() => openURL("https://ssdown.app/contact")}
-          />
+        {/* App info section */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>
+            {t("settings.appInfo")}
+          </ThemedText>
+          <View style={styles.surface}>
+            <SettingItem
+              icon="information-outline"
+              title={t("settings.appVersion")}
+              subtitle={Constants.expoConfig?.version || "1.0.0"}
+              onPress={() =>
+                openURL(
+                  "https://play.google.com/store/apps/details?id=com.mojoday.ssdown"
+                )
+              }
+            />
+            <SettingItem
+              icon="information"
+              title={t("settings.about")}
+              onPress={() => openURL("https://ssdown.app/about")}
+            />
+            <SettingItem
+              icon="shield-check-outline"
+              title={t("settings.privacy")}
+              onPress={() => openURL("https://ssdown.app/privacy")}
+            />
+            <SettingItem
+              icon="email-outline"
+              title={t("settings.contact")}
+              onPress={() => openURL("https://ssdown.app/contact")}
+            />
+          </View>
         </View>
-      </View>
 
-      {/* Misc section */}
-      <View style={styles.section}>
-        <ThemedText style={styles.sectionTitle}>Misc</ThemedText>
-        <View style={styles.surface}>
-          <SettingItem
-            icon="cog-outline"
-            title="Open system settings"
-            subtitle="Permissions and other settings"
-            onPress={openSettings}
-          />
+        {/* Misc section */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>
+            {t("settings.misc")}
+          </ThemedText>
+          <View style={styles.surface}>
+            <SettingItem
+              icon="cog-outline"
+              title={t("settings.openSystemSettings")}
+              subtitle={t("settings.openSystemSettingsSubtitle")}
+              onPress={openSettings}
+            />
+          </View>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </>
   );
 }
 
@@ -384,5 +550,74 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  modalCard: {
+    width: "100%",
+    borderRadius: 16,
+    backgroundColor: "#ffffff",
+    padding: 20,
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  modalIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(34,197,94,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#0f172a",
+    marginTop: 4,
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: "#475569",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  modalButton: {
+    marginTop: 4,
+    backgroundColor: "#22c55e",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 12,
+    width: "100%",
+    alignItems: "center",
+  },
+  modalButtonText: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 10,
+    width: "100%",
+  },
+  modalButtonSecondary: {
+    backgroundColor: "#e2e8f0",
+  },
+  modalButtonDestructive: {
+    backgroundColor: "#ef4444",
+  },
+  modalButtonPrimary: {
+    backgroundColor: "#22c55e",
   },
 });

@@ -1,0 +1,108 @@
+{
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancelar",
+    "error": "Error",
+    "success": "Éxito"
+  },
+  "tabs": {
+    "home": "Inicio",
+    "downloads": "Descargas",
+    "settings": "Configuración"
+  },
+  "home": {
+    "placeholder": "Buscar o pegar URL",
+    "download": "DESCARGAR",
+    "wifiRequiredTitle": "Wi-Fi requerido",
+    "wifiRequiredBody": "Las descargas están limitadas a Wi-Fi. Por favor, conéctate a Wi-Fi o desactiva la configuración de solo Wi-Fi en Configuración.",
+    "networkFailedTitle": "Verificación de red fallida",
+    "networkFailedBody": "No se pudo verificar el tipo de red. Por favor, verifica tu conexión e inténtalo de nuevo.",
+    "invalidUrl": "URL inválida.",
+    "missingUrl": "Por favor, ingresa una URL.",
+    "missingDownloadUrl": "La URL de descarga no está disponible.",
+    "fetchError": "Error al obtener datos del video",
+    "permissionRequiredTitle": "Permiso de almacenamiento requerido",
+    "permissionRequiredBody": "Se requiere permiso de la biblioteca de medios para guardar videos en tu galería.",
+    "permissionErrorTitle": "Error de permiso",
+    "permissionErrorBody": "Ocurrió un error al solicitar permiso. Por favor, inténtalo de nuevo.",
+    "downloadCompleteTitle": "Descarga completa",
+    "downloadCompleteBody1": "El video se ha guardado en el álbum ssdown de tu galería.",
+    "downloadCompleteBody2": "Puedes encontrarlo en tu aplicación de galería.",
+    "downloadCompleteAltBody": "Video guardado en:",
+    "downloadErrorTitle": "Error de descarga",
+    "downloadErrorBody": "Error al descargar el video. Por favor, inténtalo de nuevo."
+  },
+  "downloads": {
+    "loading": "Cargando videos...",
+    "emptyTitle": "Aún no hay videos descargados",
+    "emptySubtitle": "Descarga videos desde Inicio para verlos aquí.",
+    "filterEmptyTitle": "No se encontraron videos",
+    "filterEmptySubtitle": "Intenta seleccionar un filtro diferente.",
+    "shareNoticeTitle": "Aviso",
+    "shareNoticeBody": "Compartir no está disponible.",
+    "shareErrorTitle": "Error",
+    "shareErrorBody": "Ocurrió un error al compartir el video.",
+    "deleteTitle": "Eliminar video",
+    "deleteMessage": "¿Estás seguro de que deseas eliminar este video?",
+    "deleteSelectedTitle": "Eliminar videos",
+    "deleteSelectedMessage": "¿Estás seguro de que deseas eliminar {count} video(s)?",
+    "deleteErrorTitle": "Error",
+    "deleteErrorBody": "Error al eliminar el video.",
+    "deleteErrorBodyMulti": "Error al eliminar los videos.",
+    "loadError": "Error al cargar la lista de videos."
+  },
+  "settings": {
+    "permissions": "Permisos",
+    "storagePermission": "Permiso de almacenamiento",
+    "checking": "Verificando...",
+    "permissionGranted": "Permiso concedido",
+    "permissionRequired": "Permiso requerido",
+    "storageGrantedTitle": "Éxito",
+    "storageGrantedBody": "Permiso de almacenamiento concedido.",
+    "storageNeededTitle": "Permiso necesario",
+    "storageNeededBody": "Se requiere permiso de almacenamiento para guardar videos. Por favor, permítelo en la configuración.",
+    "storageErrorTitle": "Error",
+    "storageErrorBody": "Ocurrió un error al solicitar permisos. Por favor, inténtalo de nuevo.",
+    "downloadedVideos": "Videos descargados",
+    "saveLocation": "Ubicación de guardado",
+    "saveLocationSubtitle": "Galería > álbum ssdown",
+    "language": "Idioma",
+    "selectedLanguage": "Español",
+    "selectLanguage": "Seleccionar idioma",
+    "downloadPolicy": "Política de descarga",
+    "wifiOnlyTitle": "Descargar solo en Wi-Fi",
+    "wifiOnlyOn": "Las descargas comenzarán solo en Wi-Fi",
+    "wifiOnlyOff": "Permitir descargas en cualquier red",
+    "appInfo": "Información de la aplicación",
+    "appVersion": "Versión de la aplicación",
+    "about": "Acerca de",
+    "privacy": "Política de privacidad",
+    "contact": "Contacto",
+    "misc": "Varios",
+    "openSystemSettings": "Abrir configuración del sistema",
+    "openSystemSettingsSubtitle": "Permisos y otras configuraciones",
+    "urlOpenErrorTitle": "Error",
+    "urlOpenErrorBody": "No se puede abrir esta URL.",
+    "urlOpenErrorBody2": "Error al abrir la URL."
+  },
+  "guide": {
+    "title": "Cómo descargar videos",
+    "introTitle": "4 pasos simples",
+    "introSubtitle": "Solo pega un enlace y descarga de inmediato.",
+    "steps": {
+      "copyTitle": "1. Copiar",
+      "copyBody": "Copia el enlace de compartir (URL) del video que deseas descargar.",
+      "pasteTitle": "2. Pegar",
+      "pasteBody": "Pega el enlace en el campo de entrada de Inicio y toca el botón DESCARGAR.",
+      "qualityTitle": "3. Elegir calidad",
+      "qualityBody": "Presiona Descargar en la opción de calidad/bitrate que deseas guardar.",
+      "saveTitle": "4. Ubicación guardada",
+      "saveBody": "Encuentra los videos guardados en el álbum ssdown (galería) o la carpeta Descargas/ssdown."
+    }
+  },
+  "language": {
+    "selectLanguage": "Seleccionar idioma",
+    "chooseLanguage": "Elige tu idioma preferido para continuar."
+  }
+}
+

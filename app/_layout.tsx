@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   DarkTheme,
   DefaultTheme,
@@ -17,9 +16,12 @@ import {
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { usePathname, useRouter } from "expo-router";
 import { StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DownloadPolicyProvider } from "./context/download-policy";
+import { LocaleProvider, useLocale } from "./context/locale";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -109,6 +111,16 @@ export default function RootLayout() {
   const appOpenAdRef = useRef<AppOpenAd | null>(null);
   const appState = useRef(AppState.currentState);
   const isFirstLaunch = useRef(true);
+  const router = useRouter();
+  const pathname = usePathname();
+  const { language, loaded } = useLocale();
+
+  useEffect(() => {
+    if (!loaded) return;
+    if (!language && pathname !== "/language") {
+      router.replace("/language");
+    }
+  }, [language, loaded, pathname, router]);
 
   useEffect(() => {
     // Request permission on app launch
@@ -181,19 +193,27 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <DownloadPolicyProvider>
-        <SafeAreaView style={styles.container}>
-          <Stack>
-            <Stack.Screen
-              name="(tabs)"
-              options={{
-                headerShown: false,
-                // contentStyle: { backgroundColor: "#ffffff" },
-              }}
-            />
-          </Stack>
-        </SafeAreaView>
-      </DownloadPolicyProvider>
+      <LocaleProvider>
+        <DownloadPolicyProvider>
+          <SafeAreaView style={styles.container}>
+            <Stack>
+              <Stack.Screen
+                name="(tabs)"
+                options={{
+                  headerShown: false,
+                  // contentStyle: { backgroundColor: "#ffffff" },
+                }}
+              />
+              <Stack.Screen
+                name="language"
+                options={{
+                  headerShown: false,
+                }}
+              />
+            </Stack>
+          </SafeAreaView>
+        </DownloadPolicyProvider>
+      </LocaleProvider>
       <StatusBar style="light" />
     </ThemeProvider>
   );
