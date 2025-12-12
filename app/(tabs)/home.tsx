@@ -430,6 +430,48 @@ export default function HomeScreen() {
     }
   };
 
+  const openSocialApp = async (platform: string) => {
+    const urls: Record<string, { app: string; web: string }> = {
+      x: {
+        app: "twitter://",
+        web: "https://x.com",
+      },
+      tiktok: {
+        app: "tiktok://",
+        web: "https://www.tiktok.com",
+      },
+      facebook: {
+        app: "fb://",
+        web: "https://www.facebook.com",
+      },
+      instagram: {
+        app: "instagram://",
+        web: "https://www.instagram.com",
+      },
+    };
+
+    const urlConfig = urls[platform];
+    if (!urlConfig) return;
+
+    try {
+      // Try to open the app first
+      const canOpen = await Linking.canOpenURL(urlConfig.app);
+      if (canOpen) {
+        await Linking.openURL(urlConfig.app);
+      } else {
+        // Fallback to web URL
+        await Linking.openURL(urlConfig.web);
+      }
+    } catch (error) {
+      // If app URL fails, try web URL
+      try {
+        await Linking.openURL(urlConfig.web);
+      } catch (webError) {
+        console.error(`Failed to open ${platform}:`, webError);
+      }
+    }
+  };
+
   const socialButtons = useMemo(
     () => [
       {
@@ -629,6 +671,7 @@ export default function HomeScreen() {
               key={item.key}
               style={styles.socialItem}
               android_ripple={{ color: "rgba(255,255,255,0.08)" }}
+              onPress={() => openSocialApp(item.key)}
             >
               <View
                 style={[styles.socialCircle, { backgroundColor: item.color }]}
