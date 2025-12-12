@@ -16,7 +16,7 @@ import {
   View,
 } from "react-native";
 import { useDownloadPolicy } from "../context/download-policy";
-import { useLocale } from "../context/locale";
+import { useLocale } from "../context/_locale";
 
 export default function SettingsScreen() {
   const { t, language } = useLocale();

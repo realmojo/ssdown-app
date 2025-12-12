@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
-import { LanguageCode, useLocale } from "./context/locale";
+import { LanguageCode, useLocale } from "./context/_locale";
 
 const LANGUAGES: { code: LanguageCode; label: string }[] = [
   { code: "en", label: "English" },
@@ -24,7 +24,7 @@ const LANGUAGES: { code: LanguageCode; label: string }[] = [
 
 export default function LanguageScreen() {
   const router = useRouter();
-  const { language, setLanguage } = useLocale();
+  const { language, setLanguage, t } = useLocale();
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<LanguageCode | null>(
     language ?? "en"

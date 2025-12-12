@@ -19,7 +19,7 @@ import vi from "../locales/vi.json";
 export type LanguageCode = "en" | "ko" | "pt" | "jp" | "fr" | "vi" | "es";
 
 type LocaleContextValue = {
-  language: LanguageCode | null;
+  language: LanguageCode;
   setLanguage: (lang: LanguageCode) => Promise<void>;
   t: (key: string) => string;
   loaded: boolean;
@@ -38,7 +38,7 @@ const dictionaries: Record<LanguageCode, any> = {
 };
 
 const LocaleContext = createContext<LocaleContextValue>({
-  language: null,
+  language: "en",
   setLanguage: async () => {},
   t: (key: string) => key,
   loaded: false,
@@ -54,18 +54,22 @@ function getValue(obj: any, path: string): string | undefined {
 }
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<LanguageCode | null>(null);
+  const [language, setLanguageState] = useState<LanguageCode>("en");
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     (async () => {
       try {
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
-        if (stored === "en" || stored === "ko") {
-          setLanguageState(stored);
+        if (stored && (stored === "en" || stored === "ko" || stored === "pt" || stored === "jp" || stored === "fr" || stored === "vi" || stored === "es")) {
+          setLanguageState(stored as LanguageCode);
+        } else {
+          // Default to English if no language is stored
+          setLanguageState("en");
         }
       } catch (error) {
         console.warn("Failed to load language:", error);
+        setLanguageState("en");
       } finally {
         setLoaded(true);
       }
@@ -82,7 +86,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   };
 
   const t = (key: string) => {
-    const dict = dictionaries[language ?? "en"] || dictionaries.en;
+    const dict = dictionaries[language] || dictionaries.en;
     const value = getValue(dict, key);
     if (typeof value === "string") return value;
     const fallback = getValue(dictionaries.en, key);

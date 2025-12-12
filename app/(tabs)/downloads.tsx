@@ -18,7 +18,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
-import { useLocale } from "../context/locale";
+import { useLocale } from "../context/_locale";
 
 import { Colors } from "@/constants/theme";
 

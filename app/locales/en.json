@@ -13,6 +13,7 @@
   "home": {
     "placeholder": "Search or paste URL",
     "download": "DOWNLOAD",
+    "downloadOptions": "Download options",
     "wifiRequiredTitle": "Wi-Fi required",
     "wifiRequiredBody": "Downloads are limited to Wi-Fi. Please connect to Wi-Fi or disable the Wi-Fi-only setting in Settings.",
     "networkFailedTitle": "Network check failed",

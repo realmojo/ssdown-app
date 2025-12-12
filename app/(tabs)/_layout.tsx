@@ -8,7 +8,7 @@ import {
   BannerAdSize,
   TestIds,
 } from "react-native-google-mobile-ads";
-import { useLocale } from "../context/locale";
+import { useLocale } from "../context/_locale";
 // Android: ca-app-pub-9130836798889522/7917853154
 // iOS: ca-app-pub-9130836798889522/9641890567
 

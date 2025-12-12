@@ -26,8 +26,8 @@ import {
   InterstitialAd,
   TestIds,
 } from "react-native-google-mobile-ads";
+import { useLocale } from "../context/_locale";
 import { useDownloadPolicy } from "../context/download-policy";
-import { useLocale } from "../context/locale";
 
 interface DownloadResult {
   thumbnail?: string;
@@ -53,8 +53,9 @@ const INTERSTITIAL_AD_UNIT_ID = __DEV__
 export default function HomeScreen() {
   const router = useRouter();
   const [url, setUrl] = useState(
+    ""
     // "https://x.com/uahan2/status/1989118595876675673/video/1"
-    "https://www.tiktok.com/@user58210557014162/video/7580653045323795733?is_from_webapp=1&sender_device=pc"
+    // "https://www.tiktok.com/@user58210557014162/video/7580653045323795733?is_from_webapp=1&sender_device=pc"
     // "https://www.facebook.com/share/r/1AFGYu1iFk/"
     // "https://www.instagram.com/reel/DSH6XgujivL/?utm_source=ig_web_copy_link&igsh=NTc4MTIwNjQ2YQ=="
   );
@@ -769,7 +770,7 @@ export default function HomeScreen() {
                 <>
                   <View style={styles.downloadHeader}>
                     <ThemedText style={styles.sectionTitle}>
-                      DOWNLOAD OPTIONS
+                      {t("home.downloadOptions")}
                     </ThemedText>
                   </View>
 
@@ -809,7 +810,7 @@ export default function HomeScreen() {
                           ) : (
                             <>
                               <ThemedText style={styles.downloadText}>
-                                Download
+                                {t("home.download")}
                               </ThemedText>
                               <MaterialIcons
                                 name="file-download"

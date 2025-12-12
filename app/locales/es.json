@@ -13,6 +13,7 @@
   "home": {
     "placeholder": "Buscar o pegar URL",
     "download": "DESCARGAR",
+    "downloadOptions": "Opciones de descarga",
     "wifiRequiredTitle": "Wi-Fi requerido",
     "wifiRequiredBody": "Las descargas están limitadas a Wi-Fi. Por favor, conéctate a Wi-Fi o desactiva la configuración de solo Wi-Fi en Configuración.",
     "networkFailedTitle": "Verificación de red fallida",
@@ -105,4 +106,3 @@
     "chooseLanguage": "Elige tu idioma preferido para continuar."
   }
 }
-

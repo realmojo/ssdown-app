@@ -13,6 +13,7 @@
   "home": {
     "placeholder": "Rechercher ou coller une URL",
     "download": "TÉLÉCHARGER",
+    "downloadOptions": "Options de téléchargement",
     "wifiRequiredTitle": "Wi-Fi requis",
     "wifiRequiredBody": "Les téléchargements sont limités au Wi-Fi. Veuillez vous connecter au Wi-Fi ou désactiver le paramètre Wi-Fi uniquement dans les Paramètres.",
     "networkFailedTitle": "Vérification du réseau échouée",

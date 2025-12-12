@@ -13,6 +13,7 @@
   "home": {
     "placeholder": "URLを検索または貼り付け",
     "download": "ダウンロード",
+    "downloadOptions": "ダウンロードオプション",
     "wifiRequiredTitle": "Wi-Fiが必要です",
     "wifiRequiredBody": "ダウンロードはWi-Fiのみに制限されています。Wi-Fiに接続するか、設定でWi-Fiのみの設定を無効にしてください。",
     "networkFailedTitle": "ネットワーク確認に失敗しました",

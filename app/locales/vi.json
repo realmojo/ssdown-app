@@ -13,6 +13,7 @@
   "home": {
     "placeholder": "Tìm kiếm hoặc dán URL",
     "download": "TẢI XUỐNG",
+    "downloadOptions": "Tùy chọn tải xuống",
     "wifiRequiredTitle": "Yêu cầu Wi-Fi",
     "wifiRequiredBody": "Tải xuống chỉ giới hạn ở Wi-Fi. Vui lòng kết nối Wi-Fi hoặc tắt cài đặt chỉ Wi-Fi trong Cài đặt.",
     "networkFailedTitle": "Kiểm tra mạng thất bại",
@@ -105,4 +106,3 @@
     "chooseLanguage": "Chọn ngôn ngữ ưa thích của bạn để tiếp tục."
   }
 }
-

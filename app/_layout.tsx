@@ -20,8 +20,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePathname, useRouter } from "expo-router";
 import { StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LocaleProvider, useLocale } from "./context/_locale";
 import { DownloadPolicyProvider } from "./context/download-policy";
-import { LocaleProvider, useLocale } from "./context/locale";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -115,12 +115,8 @@ export default function RootLayout() {
   const pathname = usePathname();
   const { language, loaded } = useLocale();
 
-  useEffect(() => {
-    if (!loaded) return;
-    if (!language && pathname !== "/language") {
-      router.replace("/language");
-    }
-  }, [language, loaded, pathname, router]);
+  // Language is now defaulted to "en", so no need to redirect to language selection
+  // Users can manually navigate to /language from settings if they want to change it
 
   useEffect(() => {
     // Request permission on app launch
@@ -201,7 +197,6 @@ export default function RootLayout() {
                 name="(tabs)"
                 options={{
                   headerShown: false,
-                  // contentStyle: { backgroundColor: "#ffffff" },
                 }}
               />
               <Stack.Screen

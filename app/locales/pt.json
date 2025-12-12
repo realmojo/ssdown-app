@@ -13,6 +13,7 @@
   "home": {
     "placeholder": "Pesquisar ou colar URL",
     "download": "BAIXAR",
+    "downloadOptions": "Opções de download",
     "wifiRequiredTitle": "Wi-Fi necessário",
     "wifiRequiredBody": "Os downloads são limitados ao Wi-Fi. Por favor, conecte-se ao Wi-Fi ou desative a configuração de apenas Wi-Fi nas Configurações.",
     "networkFailedTitle": "Verificação de rede falhou",

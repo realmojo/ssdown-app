@@ -13,6 +13,7 @@
   "home": {
     "placeholder": "URL 검색 또는 입력",
     "download": "다운로드",
+    "downloadOptions": "다운로드 옵션",
     "wifiRequiredTitle": "Wi-Fi 필요",
     "wifiRequiredBody": "다운로드는 Wi-Fi에서만 가능합니다. Wi-Fi에 연결하거나 설정에서 Wi-Fi만 다운로드를 해제하세요.",
     "networkFailedTitle": "네트워크 확인 실패",
