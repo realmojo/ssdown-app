@@ -28,8 +28,8 @@ import { useLocale } from "../context/_locale";
 const BANNER_AD_UNIT_ID = __DEV__
   ? TestIds.BANNER
   : Platform.OS === "ios"
-  ? "ca-app-pub-9130836798889522/9641890567"
-  : "ca-app-pub-9130836798889522/7917853154";
+  ? "ca-app-pub-1963334904140891/9920062869"
+  : "ca-app-pub-1963334904140891/6685548954";
 
 const BANNER_HEIGHT = 60;
 

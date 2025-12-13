@@ -47,8 +47,8 @@ interface DownloadResult {
 const INTERSTITIAL_AD_UNIT_ID = __DEV__
   ? TestIds.INTERSTITIAL
   : Platform.OS === "ios"
-  ? "ca-app-pub-9130836798889522/7060103412"
-  : "ca-app-pub-9130836798889522/1791658388";
+  ? "ca-app-pub-1963334904140891/8606981190"
+  : "ca-app-pub-1963334904140891/1071078435";
 
 export default function HomeScreen() {
   const router = useRouter();

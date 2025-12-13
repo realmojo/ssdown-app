@@ -2,7 +2,7 @@
   "expo": {
     "name": "SSDOWN",
     "slug": "ssdown-app",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "scheme": "ssdownapp",
@@ -57,10 +57,9 @@
       [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": "ca-app-pub-9130836798889522~2108506168",
-          "android_app_id": "ca-app-pub-9130836798889522~2108506168",
-          "iosAppId": "ca-app-pub-9130836798889522~4159954433",
-          "ios_app_id": "ca-app-pub-9130836798889522~4159954433"
+          "androidAppId": "ca-app-pub-1963334904140891~4607832913",
+          "iosAppId": "ca-app-pub-1963334904140891~3142901528",
+          "user_tracking_usage_description": "This identifier will be used to deliver personalized ads to you."
         }
       ],
       [
@@ -77,9 +76,5 @@
       "typedRoutes": true,
       "reactCompiler": true
     }
-  },
-  "react-native-google-mobile-ads": {
-    "android_app_id": "ca-app-pub-9130836798889522~2108506168",
-    "ios_app_id": "ca-app-pub-9130836798889522~4159954433"
   }
 }

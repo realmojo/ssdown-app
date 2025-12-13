@@ -72,10 +72,10 @@ async function requestInitialPermission() {
 
 // App Open Ad configuration
 const APP_OPEN_AD_UNIT_ID = __DEV__
-  ? TestIds.APP_OPEN
+  ? TestIds.APP_OPEN // Replace with your iOS App Open Ad Unit ID
   : Platform.OS === "ios"
-  ? "ca-app-pub-9130836798889522/5218051479" // Replace with your iOS App Open Ad Unit ID
-  : "ca-app-pub-9130836798889522/1741894792"; // Replace with your Android App Open Ad Unit ID
+  ? "ca-app-pub-1963334904140891/2746303945"
+  : "ca-app-pub-1963334904140891/2233144533"; // Replace with your Android App Open Ad Unit ID
 
 // Cooldown period: 10 minutes (in milliseconds)
 const AD_COOLDOWN_PERIOD = 1000 * 60 * 10; // 10 minutes
