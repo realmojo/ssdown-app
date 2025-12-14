@@ -90,7 +90,7 @@ export default function DownloadsScreen() {
       const assets = await MediaLibrary.getAssetsAsync({
         album: album,
         mediaType: MediaLibrary.MediaType.video,
-        sortBy: MediaLibrary.SortBy.creationTime,
+        sortBy: MediaLibrary.SortBy.modificationTime,
         first: 100, // up to 100 items
       });
 
@@ -913,7 +913,7 @@ const styles = StyleSheet.create({
     right: 6,
   },
   videoInfo: {
-    padding: 14,
+    padding: 8,
     gap: 8,
     flex: 1,
     backgroundColor: "#ffffff",
@@ -921,11 +921,11 @@ const styles = StyleSheet.create({
   videoInfoList: {
     flex: 1,
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 2,
     gap: 6,
   },
   videoTitle: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "700",
     color: "#0f172a",
     lineHeight: 20,
