@@ -9,7 +9,7 @@ import * as MediaLibrary from "expo-media-library";
 import * as Network from "expo-network";
 import { useRouter } from "expo-router";
 import * as Sharing from "expo-sharing";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
@@ -23,11 +23,25 @@ import {
 } from "react-native";
 import {
   AdEventType,
+  BannerAd,
+  BannerAdSize,
   InterstitialAd,
   TestIds,
 } from "react-native-google-mobile-ads";
 import { useLocale } from "../context/_locale";
 import { useDownloadPolicy } from "../context/download-policy";
+
+const BANNER_AD_UNIT_ID = __DEV__
+  ? TestIds.BANNER
+  : Platform.OS === "ios"
+  ? "ca-app-pub-1963334904140891/5152442608"
+  : "ca-app-pub-1963334904140891/9942553097";
+
+const DOWNLOAD_OPTIONS_BANNER_AD_UNIT_ID = __DEV__
+  ? TestIds.BANNER
+  : Platform.OS === "ios"
+  ? "ca-app-pub-1963334904140891/7702584326"
+  : "ca-app-pub-1963334904140891/7016188613";
 
 interface DownloadResult {
   thumbnail?: string;
@@ -58,6 +72,7 @@ export default function HomeScreen() {
     // "https://www.tiktok.com/@user58210557014162/video/7580653045323795733?is_from_webapp=1&sender_device=pc"
     // "https://www.facebook.com/share/r/1AFGYu1iFk/"
     // "https://www.instagram.com/reel/DSH6XgujivL/?utm_source=ig_web_copy_link&igsh=NTc4MTIwNjQ2YQ=="
+    // ""
   );
   const [showResult, setShowResult] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -84,6 +99,12 @@ export default function HomeScreen() {
   const { t } = useLocale();
   const interstitialRef = useRef<InterstitialAd | null>(null);
   const [interstitialLoaded, setInterstitialLoaded] = useState(false);
+  const pendingDownloadRef = useRef<{
+    downloadUrl: string;
+    quality: string;
+    downloadId: string;
+  } | null>(null);
+  const performDownloadRef = useRef<typeof performDownload | null>(null);
 
   const showInfoModal = (title: string, message: string) => {
     setInfoModal({ visible: true, title, message });
@@ -118,10 +139,17 @@ export default function HomeScreen() {
     );
     const closedListener = interstitial.addAdEventListener(
       AdEventType.CLOSED,
-      () => {
-        setSuccessModalVisible(false);
+      async () => {
         setInterstitialLoaded(false);
         interstitial.load();
+
+        // 광고 시청 완료 후 다운로드 시작
+        if (pendingDownloadRef.current && performDownloadRef.current) {
+          const { downloadUrl, quality, downloadId } =
+            pendingDownloadRef.current;
+          pendingDownloadRef.current = null;
+          await performDownloadRef.current(downloadUrl, quality, downloadId);
+        }
       }
     );
     const errorListener = interstitial.addAdEventListener(
@@ -159,6 +187,8 @@ export default function HomeScreen() {
       const apiUrl = `https://ssdown.app/api/${videoType}?url=${url}`;
       const response = await fetch(apiUrl);
       let data = await response.json();
+
+      console.log(data);
 
       if (videoType === "instagram") {
         data = data[0];
@@ -311,122 +341,149 @@ export default function HomeScreen() {
     }
   };
 
+  // 실제 다운로드를 수행하는 함수
+  const performDownload = useCallback(
+    async (downloadUrl: string, quality: string, downloadId: string) => {
+      const videoType = getVideoType(url);
+      if (videoType === "unknown") {
+        showInfoModal(t("common.error"), t("home.invalidUrl"));
+        return;
+      }
+      if (!downloadUrl) {
+        showInfoModal(t("common.error"), t("home.missingDownloadUrl"));
+        return;
+      }
+
+      // Enforce Wi-Fi-only downloads if enabled
+      if (wifiOnly) {
+        try {
+          const networkState = await Network.getNetworkStateAsync();
+          if (
+            !networkState.isConnected ||
+            networkState.type !== Network.NetworkStateType.WIFI
+          ) {
+            showInfoModal(
+              t("home.wifiRequiredTitle"),
+              t("home.wifiRequiredBody")
+            );
+            return;
+          }
+        } catch (error) {
+          console.warn("Network check failed:", error);
+          showInfoModal(
+            t("home.networkFailedTitle"),
+            t("home.networkFailedBody")
+          );
+          return;
+        }
+      }
+
+      setDownloadingVideo(downloadId);
+
+      try {
+        // Request permission before download
+        const hasPermission = await requestStoragePermission();
+        if (!hasPermission) {
+          setDownloadingVideo(null);
+          return;
+        }
+
+        // Build download API URL
+        const apiDownloadUrl = `https://ssdown.app/api/${videoType}/download?videoUrl=${encodeURIComponent(
+          downloadUrl
+        )}`;
+
+        // Generate filename
+        const fileName = `video_${videoType}_${Date.now()}.mp4`;
+
+        // Save file temporarily inside the app
+        const tempDir = new Directory(Paths.cache, "temp");
+        if (!tempDir.exists) {
+          tempDir.create({ intermediates: true, idempotent: true });
+        }
+        const tempFile = new File(tempDir, fileName);
+
+        // Download file
+        const response = await fetch(apiDownloadUrl);
+        if (!response.ok) {
+          throw new Error(`Download failed: ${response.status}`);
+        }
+
+        // Convert response to ArrayBuffer
+        const arrayBuffer = await response.arrayBuffer();
+
+        // Convert to Uint8Array and write to the temp file
+        const uint8Array = new Uint8Array(arrayBuffer);
+        await tempFile.write(uint8Array);
+
+        // Save to the ssdown album via MediaLibrary
+        try {
+          // Save to gallery with MediaLibrary
+          const asset = await MediaLibrary.createAssetAsync(tempFile.uri);
+
+          // Create or fetch the ssdown album
+          let album = await MediaLibrary.getAlbumAsync("ssdown");
+          if (!album) {
+            album = await MediaLibrary.createAlbumAsync("ssdown", asset, false);
+          } else {
+            await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+          }
+
+          setSuccessModalVisible(true);
+        } catch (mediaError) {
+          // If MediaLibrary fails, fall back to sharing dialog
+          console.error("MediaLibrary error:", mediaError);
+          const isAvailable = await Sharing.isAvailableAsync();
+          if (isAvailable) {
+            await Sharing.shareAsync(tempFile.uri, {
+              mimeType: "video/mp4",
+              dialogTitle: `Save video`,
+              UTI: "public.movie",
+            });
+          } else {
+            showInfoModal(
+              t("home.downloadCompleteTitle"),
+              `${t("home.downloadCompleteAltBody")} ${tempFile.uri}`
+            );
+          }
+        }
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : "Failed to download video. Please try again.";
+        showInfoModal(t("home.downloadErrorTitle"), errorMessage);
+      } finally {
+        setDownloadingVideo(null);
+      }
+    },
+    [url, wifiOnly, t]
+  );
+
+  // performDownload를 ref에 저장
+  useEffect(() => {
+    performDownloadRef.current = performDownload;
+  }, [performDownload]);
+
+  // 다운로드 버튼 클릭 시 호출되는 함수 (광고 먼저 표시)
   const handleVideoDownload = async (
     downloadUrl: string,
     quality: string,
     downloadId: string
   ) => {
-    const videoType = getVideoType(url);
-    if (videoType === "unknown") {
-      showInfoModal(t("common.error"), t("home.invalidUrl"));
-      return;
-    }
-    if (!downloadUrl) {
-      showInfoModal(t("common.error"), t("home.missingDownloadUrl"));
-      return;
-    }
+    // 다운로드 파라미터 저장
+    pendingDownloadRef.current = { downloadUrl, quality, downloadId };
 
-    // Enforce Wi-Fi-only downloads if enabled
-    if (wifiOnly) {
-      try {
-        const networkState = await Network.getNetworkStateAsync();
-        if (
-          !networkState.isConnected ||
-          networkState.type !== Network.NetworkStateType.WIFI
-        ) {
-          showInfoModal(
-            t("home.wifiRequiredTitle"),
-            t("home.wifiRequiredBody")
-          );
-          return;
-        }
-      } catch (error) {
-        console.warn("Network check failed:", error);
-        showInfoModal(
-          t("home.networkFailedTitle"),
-          t("home.networkFailedBody")
-        );
-        return;
+    // 광고가 로드되어 있으면 광고 표시, 없으면 바로 다운로드
+    if (interstitialLoaded && interstitialRef.current) {
+      interstitialRef.current.show();
+    } else {
+      // 광고가 없으면 바로 다운로드 시작
+      if (pendingDownloadRef.current && performDownloadRef.current) {
+        const { downloadUrl, quality, downloadId } = pendingDownloadRef.current;
+        pendingDownloadRef.current = null;
+        await performDownloadRef.current(downloadUrl, quality, downloadId);
       }
-    }
-
-    setDownloadingVideo(downloadId);
-
-    try {
-      // Request permission before download
-      const hasPermission = await requestStoragePermission();
-      if (!hasPermission) {
-        setDownloadingVideo(null);
-        return;
-      }
-
-      // Build download API URL
-      const apiDownloadUrl = `https://ssdown.app/api/${videoType}/download?videoUrl=${encodeURIComponent(
-        downloadUrl
-      )}`;
-
-      // Generate filename
-      const fileName = `video_${videoType}_${Date.now()}.mp4`;
-
-      // Save file temporarily inside the app
-      const tempDir = new Directory(Paths.cache, "temp");
-      if (!tempDir.exists) {
-        tempDir.create({ intermediates: true, idempotent: true });
-      }
-      const tempFile = new File(tempDir, fileName);
-
-      // Download file
-      const response = await fetch(apiDownloadUrl);
-      if (!response.ok) {
-        throw new Error(`Download failed: ${response.status}`);
-      }
-
-      // Convert response to ArrayBuffer
-      const arrayBuffer = await response.arrayBuffer();
-
-      // Convert to Uint8Array and write to the temp file
-      const uint8Array = new Uint8Array(arrayBuffer);
-      await tempFile.write(uint8Array);
-
-      // Save to the ssdown album via MediaLibrary
-      try {
-        // Save to gallery with MediaLibrary
-        const asset = await MediaLibrary.createAssetAsync(tempFile.uri);
-
-        // Create or fetch the ssdown album
-        let album = await MediaLibrary.getAlbumAsync("ssdown");
-        if (!album) {
-          album = await MediaLibrary.createAlbumAsync("ssdown", asset, false);
-        } else {
-          await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-        }
-
-        setSuccessModalVisible(true);
-      } catch (mediaError) {
-        // If MediaLibrary fails, fall back to sharing dialog
-        console.error("MediaLibrary error:", mediaError);
-        const isAvailable = await Sharing.isAvailableAsync();
-        if (isAvailable) {
-          await Sharing.shareAsync(tempFile.uri, {
-            mimeType: "video/mp4",
-            dialogTitle: `Save video`,
-            UTI: "public.movie",
-          });
-        } else {
-          showInfoModal(
-            t("home.downloadCompleteTitle"),
-            `${t("home.downloadCompleteAltBody")} ${tempFile.uri}`
-          );
-        }
-      }
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Failed to download video. Please try again.";
-      showInfoModal(t("home.downloadErrorTitle"), errorMessage);
-    } finally {
-      setDownloadingVideo(null);
     }
   };
 
@@ -447,6 +504,14 @@ export default function HomeScreen() {
       instagram: {
         app: "instagram://",
         web: "https://www.instagram.com",
+      },
+      ninegag: {
+        app: "ninegag://",
+        web: "https://www.9gag.com",
+      },
+      dailymotion: {
+        app: "dailymotion://",
+        web: "https://www.dailymotion.com",
       },
     };
 
@@ -497,6 +562,18 @@ export default function HomeScreen() {
         icon: "instagram",
         label: "Instagram",
         color: "#df73a3",
+      },
+      {
+        key: "ninegag",
+        icon: "ninegag",
+        label: "9GAG",
+        color: "orange",
+      },
+      {
+        key: "dailymotion",
+        icon: "dailymotion",
+        label: "DailyMotion",
+        color: "#0f172a",
       },
     ],
     []
@@ -564,11 +641,7 @@ export default function HomeScreen() {
             <Pressable
               style={styles.modalButton}
               onPress={() => {
-                if (interstitialLoaded && interstitialRef.current) {
-                  interstitialRef.current.show();
-                } else {
-                  setSuccessModalVisible(false);
-                }
+                setSuccessModalVisible(false);
               }}
               android_ripple={{ color: "#cbd5e1" }}
             >
@@ -650,6 +723,24 @@ export default function HomeScreen() {
           />
         </View>
 
+        <View
+          style={{
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <BannerAd
+            unitId={BANNER_AD_UNIT_ID}
+            size={BannerAdSize.LARGE_BANNER}
+            requestOptions={{
+              requestNonPersonalizedAdsOnly: true,
+            }}
+            onAdFailedToLoad={(error: any) => {
+              console.error("Ad failed to load:", error);
+            }}
+          />
+        </View>
+
         {/* Download Button */}
         <Pressable
           style={[styles.searchButton, loading && styles.searchButtonDisabled]}
@@ -665,7 +756,12 @@ export default function HomeScreen() {
             </ThemedText>
           )}
         </Pressable>
-        <View style={styles.socialGrid}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.socialGrid}
+          style={styles.socialGridContainer}
+        >
           {socialButtons.map((item) => (
             <Pressable
               key={item.key}
@@ -677,22 +773,28 @@ export default function HomeScreen() {
                 style={[styles.socialCircle, { backgroundColor: item.color }]}
               >
                 {item.label === "X" && (
-                  <FontAwesome6 name="x-twitter" size={28} color="#fff" />
+                  <FontAwesome6 name="x-twitter" size={22} color="#fff" />
                 )}
                 {item.label === "Tiktok" && (
-                  <FontAwesome6 name="tiktok" size={28} color="#fff" />
+                  <FontAwesome6 name="tiktok" size={22} color="#fff" />
                 )}
                 {item.label === "Facebook" && (
-                  <FontAwesome6 name="facebook" size={28} color="#fff" />
+                  <FontAwesome6 name="facebook" size={22} color="#fff" />
                 )}
                 {item.label === "Instagram" && (
-                  <FontAwesome6 name="instagram" size={28} color="#fff" />
+                  <FontAwesome6 name="instagram" size={22} color="#fff" />
+                )}
+                {item.label === "9GAG" && (
+                  <FontAwesome6 name="9" size={22} color="#fff" />
+                )}
+                {item.label === "DailyMotion" && (
+                  <FontAwesome6 name="dailymotion" size={22} color="#fff" />
                 )}
               </View>
               <ThemedText style={styles.socialLabel}>{item.label}</ThemedText>
             </Pressable>
           ))}
-        </View>
+        </ScrollView>
 
         <Pressable
           style={styles.tipCard}
@@ -817,6 +919,25 @@ export default function HomeScreen() {
                     </ThemedText>
                   </View>
 
+                  <View
+                    style={{
+                      flex: 1,
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <BannerAd
+                      unitId={DOWNLOAD_OPTIONS_BANNER_AD_UNIT_ID}
+                      size={BannerAdSize.LARGE_BANNER}
+                      requestOptions={{
+                        requestNonPersonalizedAdsOnly: true,
+                      }}
+                      onAdFailedToLoad={(error: any) => {
+                        console.error("Ad failed to load:", error);
+                      }}
+                    />
+                  </View>
+
                   <View style={styles.downloadList}>
                     {downloadResult.downloads.map((item, index) => (
                       <View key={item.id || index} style={styles.downloadRow}>
@@ -917,27 +1038,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#e5e7eb",
   },
+  socialGridContainer: {
+    marginVertical: 0,
+  },
   socialGrid: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    rowGap: 18,
+    gap: 12,
+    paddingVertical: 4,
   },
   socialItem: {
-    width: "23%",
+    width: 65,
     alignItems: "center",
-    gap: 8,
+    gap: 6,
   },
   socialCircle: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 55,
+    height: 55,
+    borderRadius: 27.5,
     alignItems: "center",
     justifyContent: "center",
   },
   socialLabel: {
     color: "#e5e7eb",
-    fontSize: 13,
+    fontSize: 11,
     textAlign: "center",
   },
   searchButton: {

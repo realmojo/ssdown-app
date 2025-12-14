@@ -1,4 +1,5 @@
 import { ThemedText } from "@/components/themed-text";
+import { Colors } from "@/constants/theme";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { getInfoAsync as getInfoAsyncLegacy } from "expo-file-system/legacy";
 import { Image } from "expo-image";
@@ -6,25 +7,36 @@ import * as MediaLibrary from "expo-media-library";
 import { useFocusEffect } from "expo-router";
 import * as Sharing from "expo-sharing";
 import { useVideoPlayer, VideoView } from "expo-video";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
   FlatList,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+import {
+  BannerAd,
+  BannerAdSize,
+  TestIds,
+} from "react-native-google-mobile-ads";
 import { useLocale } from "../context/_locale";
-
-import { Colors } from "@/constants/theme";
 
 const { width } = Dimensions.get("window");
 const ITEM_SIZE = (width - 48) / 2;
 type ExtendedAsset = MediaLibrary.Asset & { sizeLabel?: string };
+
+const BANNER_AD_UNIT_ID = __DEV__
+  ? TestIds.BANNER
+  : Platform.OS === "ios"
+  ? "ca-app-pub-1963334904140891/3892343586"
+  : "ca-app-pub-1963334904140891/2202845633";
 
 export default function DownloadsScreen() {
   const [videos, setVideos] = useState<ExtendedAsset[]>([]);
@@ -41,7 +53,7 @@ export default function DownloadsScreen() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [actionAsset, setActionAsset] = useState<ExtendedAsset | null>(null);
   const [filterType, setFilterType] = useState<
-    "all" | "x" | "tiktok" | "facebook" | "instagram"
+    "all" | "x" | "tiktok" | "facebook" | "instagram" | "9gag" | "dailymotion"
   >("all");
   const [infoModal, setInfoModal] = useState<{
     visible: boolean;
@@ -283,6 +295,10 @@ export default function DownloadsScreen() {
             return filename.includes("facebook") || filename.includes("fb");
           case "instagram":
             return filename.includes("instagram") || filename.includes("ig");
+          case "9gag":
+            return filename.includes("ninegag") || filename.includes("9gag");
+          case "dailymotion":
+            return filename.includes("dailymotion") || filename.includes("dm");
           default:
             return true;
         }
@@ -292,6 +308,78 @@ export default function DownloadsScreen() {
   );
 
   const filteredVideos = filterVideos(videos);
+
+  // 공통 비디오 타입 버튼 배열
+  const videoTypeButtons = useMemo(
+    () => [
+      { key: "all", label: "All" },
+      { key: "x", label: "X" },
+      { key: "tiktok", label: "Tiktok" },
+      { key: "facebook", label: "Facebook" },
+      { key: "instagram", label: "Instagram" },
+      { key: "9gag", label: "9GAG" },
+      { key: "dailymotion", label: "DailyMotion" },
+    ],
+    []
+  );
+
+  // 공통 비디오 타입 버튼 렌더링 함수
+  const renderVideoTypeButtons = () =>
+    videoTypeButtons.map((item) => (
+      <Pressable
+        key={item.key}
+        style={[
+          styles.videoTypeButton,
+          filterType === item.key && styles.videoTypeButtonActive,
+        ]}
+        onPress={() => setFilterType(item.key as typeof filterType)}
+        android_ripple={{ color: "#e3ebf5" }}
+      >
+        <ThemedText
+          style={[
+            styles.videoTypeButtonText,
+            filterType === item.key && styles.videoTypeButtonTextActive,
+          ]}
+        >
+          {item.label}
+        </ThemedText>
+      </Pressable>
+    ));
+
+  // 공통 뷰 모드 토글 버튼 렌더링 함수
+  const renderViewModeToggle = () => (
+    <Pressable
+      style={[
+        styles.toggleButton,
+        viewMode === "list" && styles.toggleButtonActive,
+      ]}
+      onPress={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+      android_ripple={{ color: "#e3ebf5" }}
+    >
+      <MaterialCommunityIcons
+        name={viewMode === "grid" ? "view-grid" : "view-list"}
+        size={16}
+        color={"#fff"}
+      />
+    </Pressable>
+  );
+
+  // 공통 헤더 바 렌더링 함수
+  const renderHeaderBar = () => (
+    <View style={styles.headerBar}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.videoTypeButtonsContainer}
+        style={[styles.videoTypeButtonsScrollContainer]}
+      >
+        {renderVideoTypeButtons()}
+      </ScrollView>
+      <View style={{ alignItems: "flex-end", justifyContent: "center" }}>
+        {renderViewModeToggle()}
+      </View>
+    </View>
+  );
 
   const renderModals = () => (
     <>
@@ -551,113 +639,12 @@ export default function DownloadsScreen() {
     );
   }
 
+  // 비디오 필터링 후 비디오가 없을 때
   if (filteredVideos.length === 0 && videos.length > 0) {
     return (
       <>
         {renderModals()}
-        <View style={styles.headerBar}>
-          <Pressable
-            style={[
-              styles.toggleButton,
-              viewMode === "list" && styles.toggleButtonActive,
-            ]}
-            onPress={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
-            android_ripple={{ color: "#e3ebf5" }}
-          >
-            <MaterialCommunityIcons
-              name={viewMode === "grid" ? "view-grid" : "view-list"}
-              size={16}
-              color={"#fff"}
-            />
-          </Pressable>
-        </View>
-        <View style={styles.videoTypeButtonsContainer}>
-          <Pressable
-            style={[
-              styles.videoTypeButton,
-              filterType === "all" && styles.videoTypeButtonActive,
-            ]}
-            onPress={() => setFilterType("all")}
-            android_ripple={{ color: "#e3ebf5" }}
-          >
-            <ThemedText
-              style={[
-                styles.videoTypeButtonText,
-                filterType === "all" && styles.videoTypeButtonTextActive,
-              ]}
-            >
-              All
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            style={[
-              styles.videoTypeButton,
-              filterType === "x" && styles.videoTypeButtonActive,
-            ]}
-            onPress={() => setFilterType("x")}
-            android_ripple={{ color: "#e3ebf5" }}
-          >
-            <ThemedText
-              style={[
-                styles.videoTypeButtonText,
-                filterType === "x" && styles.videoTypeButtonTextActive,
-              ]}
-            >
-              X
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            style={[
-              styles.videoTypeButton,
-              filterType === "tiktok" && styles.videoTypeButtonActive,
-            ]}
-            onPress={() => setFilterType("tiktok")}
-            android_ripple={{ color: "#e3ebf5" }}
-          >
-            <ThemedText
-              style={[
-                styles.videoTypeButtonText,
-                filterType === "tiktok" && styles.videoTypeButtonTextActive,
-              ]}
-            >
-              Tiktok
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            style={[
-              styles.videoTypeButton,
-              filterType === "facebook" && styles.videoTypeButtonActive,
-            ]}
-            onPress={() => setFilterType("facebook")}
-            android_ripple={{ color: "#e3ebf5" }}
-          >
-            <ThemedText
-              style={[
-                styles.videoTypeButtonText,
-                filterType === "facebook" && styles.videoTypeButtonTextActive,
-              ]}
-            >
-              Facebook
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            style={[
-              styles.videoTypeButton,
-              filterType === "instagram" && styles.videoTypeButtonActive,
-            ]}
-            onPress={() => setFilterType("instagram")}
-            android_ripple={{ color: "#e3ebf5" }}
-          >
-            <ThemedText
-              style={[
-                styles.videoTypeButtonText,
-                filterType === "instagram" && styles.videoTypeButtonTextActive,
-              ]}
-            >
-              Instagram
-            </ThemedText>
-          </Pressable>
-        </View>
+        {renderHeaderBar()}
         <View style={styles.emptyContainer}>
           <MaterialCommunityIcons
             name="filter-off-outline"
@@ -678,21 +665,16 @@ export default function DownloadsScreen() {
   return (
     <>
       {renderModals()}
-      <View style={styles.headerBar}>
-        <Pressable
-          style={[
-            styles.toggleButton,
-            viewMode === "list" && styles.toggleButtonActive,
-          ]}
-          onPress={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
-          android_ripple={{ color: "#e3ebf5" }}
-        >
-          <MaterialCommunityIcons
-            name={viewMode === "grid" ? "view-grid" : "view-list"}
-            size={16}
-            color={"#fff"}
-          />
-        </Pressable>
+      {renderHeaderBar()}
+
+      <View style={{ alignItems: "center", justifyContent: "center" }}>
+        <BannerAd
+          unitId={BANNER_AD_UNIT_ID}
+          size={BannerAdSize.LARGE_BANNER}
+          requestOptions={{
+            requestNonPersonalizedAdsOnly: true,
+          }}
+        />
       </View>
       {selectionMode && (
         <View style={styles.selectionBar}>
@@ -727,93 +709,6 @@ export default function DownloadsScreen() {
           </View>
         </View>
       )}
-      <View style={styles.videoTypeButtonsContainer}>
-        <Pressable
-          style={[
-            styles.videoTypeButton,
-            filterType === "all" && styles.videoTypeButtonActive,
-          ]}
-          onPress={() => setFilterType("all")}
-          android_ripple={{ color: "#e3ebf5" }}
-        >
-          <ThemedText
-            style={[
-              styles.videoTypeButtonText,
-              filterType === "all" && styles.videoTypeButtonTextActive,
-            ]}
-          >
-            All
-          </ThemedText>
-        </Pressable>
-        <Pressable
-          style={[
-            styles.videoTypeButton,
-            filterType === "x" && styles.videoTypeButtonActive,
-          ]}
-          onPress={() => setFilterType("x")}
-          android_ripple={{ color: "#e3ebf5" }}
-        >
-          <ThemedText
-            style={[
-              styles.videoTypeButtonText,
-              filterType === "x" && styles.videoTypeButtonTextActive,
-            ]}
-          >
-            X
-          </ThemedText>
-        </Pressable>
-        <Pressable
-          style={[
-            styles.videoTypeButton,
-            filterType === "tiktok" && styles.videoTypeButtonActive,
-          ]}
-          onPress={() => setFilterType("tiktok")}
-          android_ripple={{ color: "#e3ebf5" }}
-        >
-          <ThemedText
-            style={[
-              styles.videoTypeButtonText,
-              filterType === "tiktok" && styles.videoTypeButtonTextActive,
-            ]}
-          >
-            Tiktok
-          </ThemedText>
-        </Pressable>
-        <Pressable
-          style={[
-            styles.videoTypeButton,
-            filterType === "facebook" && styles.videoTypeButtonActive,
-          ]}
-          onPress={() => setFilterType("facebook")}
-          android_ripple={{ color: "#e3ebf5" }}
-        >
-          <ThemedText
-            style={[
-              styles.videoTypeButtonText,
-              filterType === "facebook" && styles.videoTypeButtonTextActive,
-            ]}
-          >
-            Facebook
-          </ThemedText>
-        </Pressable>
-        <Pressable
-          style={[
-            styles.videoTypeButton,
-            filterType === "instagram" && styles.videoTypeButtonActive,
-          ]}
-          onPress={() => setFilterType("instagram")}
-          android_ripple={{ color: "#e3ebf5" }}
-        >
-          <ThemedText
-            style={[
-              styles.videoTypeButtonText,
-              filterType === "instagram" && styles.videoTypeButtonTextActive,
-            ]}
-          >
-            Instagram
-          </ThemedText>
-        </Pressable>
-      </View>
       <FlatList
         key={`view-${viewMode}`}
         data={filteredVideos}
@@ -924,7 +819,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 16,
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#0f172a",
   },
   loadingText: {
     color: "#64748b",
@@ -937,12 +832,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 40,
     gap: 16,
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#0f172a",
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#1e293b",
+    color: "white",
     textAlign: "center",
     letterSpacing: -0.3,
   },
@@ -980,7 +875,7 @@ const styles = StyleSheet.create({
     width: "100%",
     aspectRatio: 16 / 9,
     position: "relative",
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#0f172a",
   },
   thumbnailContainerList: {
     width: 140,
@@ -1085,7 +980,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 8,
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#e2e8f0",
   },
@@ -1139,17 +1034,18 @@ const styles = StyleSheet.create({
   // Header Bar
   headerBar: {
     flexDirection: "row",
-    justifyContent: "flex-end",
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 12,
     backgroundColor: "transparent",
+    gap: 8,
   },
   // Toggle Button
   toggleButton: {
     width: 32,
     height: 32,
-    borderRadius: 12,
+    borderRadius: 10,
+    marginBottom: 8,
     // backgroundColor: Colors.light.tint,
     shadowColor: "#fff",
     shadowOffset: { width: 0, height: 2 },
@@ -1172,17 +1068,19 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   // Video Type Filter Buttons
+  videoTypeButtonsScrollContainer: {
+    marginVertical: 0,
+    marginBottom: 8,
+  },
   videoTypeButtonsContainer: {
     flexDirection: "row",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
     gap: 8,
     backgroundColor: "transparent",
   },
   videoTypeButton: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    // paddingVertical: 8,
+    borderRadius: 10,
     backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: "#e2e8f0",
@@ -1345,7 +1243,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 12,
-    width: "100%",
+    flex: 1,
     alignItems: "center",
   },
   modalButtonText: {

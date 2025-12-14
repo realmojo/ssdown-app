@@ -11,6 +11,8 @@ export const getVideoType = (url: string) => {
     return "facebook";
   } else if (url.includes("9gag")) {
     return "9gag";
+  } else if (url.includes("dailymotion")) {
+    return "dailymotion";
   } else {
     return "unknown";
   }
