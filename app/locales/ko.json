@@ -12,6 +12,8 @@
   },
   "home": {
     "placeholder": "URL 검색 또는 입력",
+    "adDescription": "광고를 시청하고 무료로 다운로드하세요",
+    "loading": "로딩 중...",
     "download": "다운로드",
     "downloadOptions": "다운로드 옵션",
     "wifiRequiredTitle": "Wi-Fi 필요",

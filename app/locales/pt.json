@@ -12,6 +12,8 @@
   },
   "home": {
     "placeholder": "Pesquisar ou colar URL",
+    "adDescription": "Por favor, assista o AD e baixe-o gratuitamente",
+    "loading": "Carregando...",
     "download": "BAIXAR",
     "downloadOptions": "Opções de download",
     "wifiRequiredTitle": "Wi-Fi necessário",

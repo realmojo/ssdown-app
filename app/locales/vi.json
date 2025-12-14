@@ -12,6 +12,8 @@
   },
   "home": {
     "placeholder": "Tìm kiếm hoặc dán URL",
+    "adDescription": "Vui lòng xem quảng cáo và tải xuống miễn phí",
+    "loading": "Đang tải...",
     "download": "TẢI XUỐNG",
     "downloadOptions": "Tùy chọn tải xuống",
     "wifiRequiredTitle": "Yêu cầu Wi-Fi",

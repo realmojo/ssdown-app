@@ -12,6 +12,8 @@
   },
   "home": {
     "placeholder": "Search or paste URL",
+    "adDescription": "Please watch the AD and download it for free",
+    "loading": "Loading...",
     "download": "DOWNLOAD",
     "downloadOptions": "Download options",
     "wifiRequiredTitle": "Wi-Fi required",

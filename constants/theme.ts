@@ -6,7 +6,7 @@
 import { Platform } from "react-native";
 
 // Global accent color
-export const accent = "#f5d76e";
+export const accent = "#3ae4a3";
 export const tintColorLight = accent;
 export const tintColorDark = accent;
 

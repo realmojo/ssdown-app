@@ -12,6 +12,8 @@
   },
   "home": {
     "placeholder": "Rechercher ou coller une URL",
+    "adDescription": "Veuillez regarder la publicité et téléchargez-le gratuitement",
+    "loading": "Chargement...",
     "download": "TÉLÉCHARGER",
     "downloadOptions": "Options de téléchargement",
     "wifiRequiredTitle": "Wi-Fi requis",

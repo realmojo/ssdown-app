@@ -12,6 +12,8 @@
   },
   "home": {
     "placeholder": "URLを検索または貼り付け",
+    "adDescription": "広告を見て、無料でダウンロードしてください",
+    "loading": "読み込み中...",
     "download": "ダウンロード",
     "downloadOptions": "ダウンロードオプション",
     "wifiRequiredTitle": "Wi-Fiが必要です",

@@ -1,5 +1,4 @@
 import { ThemedText } from "@/components/themed-text";
-import { tintColorLight } from "@/constants/theme";
 import { getVideoType } from "@/utils/common";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
@@ -25,7 +24,8 @@ import {
   AdEventType,
   BannerAd,
   BannerAdSize,
-  InterstitialAd,
+  RewardedAd,
+  RewardedAdEventType,
   TestIds,
 } from "react-native-google-mobile-ads";
 import { useLocale } from "../context/_locale";
@@ -43,6 +43,18 @@ const DOWNLOAD_OPTIONS_BANNER_AD_UNIT_ID = __DEV__
   ? "ca-app-pub-1963334904140891/7702584326"
   : "ca-app-pub-1963334904140891/7016188613";
 
+// const INTERSTITIAL_AD_UNIT_ID = __DEV__
+//   ? TestIds.INTERSTITIAL
+//   : Platform.OS === "ios"
+//   ? "ca-app-pub-1963334904140891/8606981190"
+//   : "ca-app-pub-1963334904140891/1071078435";
+
+const REWARDED_AD_UNIT_ID = __DEV__
+  ? TestIds.REWARDED
+  : Platform.OS === "ios"
+  ? "ca-app-pub-1963334904140891/4315656040"
+  : "ca-app-pub-1963334904140891/9101272385";
+
 interface DownloadResult {
   thumbnail?: string;
   user?: { name: string; handle: string; avatar?: string };
@@ -57,12 +69,6 @@ interface DownloadResult {
   }>;
   downloads?: Array<{ id: string; label: string; url?: string }>;
 }
-
-const INTERSTITIAL_AD_UNIT_ID = __DEV__
-  ? TestIds.INTERSTITIAL
-  : Platform.OS === "ios"
-  ? "ca-app-pub-1963334904140891/8606981190"
-  : "ca-app-pub-1963334904140891/1071078435";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -97,8 +103,7 @@ export default function HomeScreen() {
   }>({ visible: false, title: "", message: "" });
   const { wifiOnly } = useDownloadPolicy();
   const { t } = useLocale();
-  const interstitialRef = useRef<InterstitialAd | null>(null);
-  const [interstitialLoaded, setInterstitialLoaded] = useState(false);
+  const [rewardedAd, setRewardedAd] = useState<RewardedAd | null>(null);
   const pendingDownloadRef = useRef<{
     downloadUrl: string;
     quality: string;
@@ -127,23 +132,23 @@ export default function HomeScreen() {
     });
   };
 
+  // Load rewarded ad
   useEffect(() => {
-    const interstitial = InterstitialAd.createForAdRequest(
-      INTERSTITIAL_AD_UNIT_ID,
-      { requestNonPersonalizedAdsOnly: true }
+    const ad = RewardedAd.createForAdRequest(REWARDED_AD_UNIT_ID, {
+      requestNonPersonalizedAdsOnly: true,
+    });
+
+    const unsubscribeLoaded = ad.addAdEventListener(
+      RewardedAdEventType.LOADED,
+      () => {
+        console.log("Rewarded ad loaded");
+      }
     );
 
-    const loadedListener = interstitial.addAdEventListener(
-      AdEventType.LOADED,
-      () => setInterstitialLoaded(true)
-    );
-    const closedListener = interstitial.addAdEventListener(
-      AdEventType.CLOSED,
-      async () => {
-        setInterstitialLoaded(false);
-        interstitial.load();
-
-        // 광고 시청 완료 후 다운로드 시작
+    const unsubscribeEarned = ad.addAdEventListener(
+      RewardedAdEventType.EARNED_REWARD,
+      async (reward) => {
+        // 보상을 받았을 때 다운로드 시작
         if (pendingDownloadRef.current && performDownloadRef.current) {
           const { downloadUrl, quality, downloadId } =
             pendingDownloadRef.current;
@@ -152,18 +157,21 @@ export default function HomeScreen() {
         }
       }
     );
-    const errorListener = interstitial.addAdEventListener(
-      AdEventType.ERROR,
-      () => setInterstitialLoaded(false)
-    );
 
-    interstitial.load();
-    interstitialRef.current = interstitial;
+    const unsubscribeClosed = ad.addAdEventListener(AdEventType.CLOSED, () => {
+      console.log("Rewarded ad closed");
+      // 광고가 닫힌 후 새 광고 로드
+      ad.load();
+    });
+
+    ad.load();
+
+    setRewardedAd(ad);
 
     return () => {
-      loadedListener();
-      closedListener();
-      errorListener();
+      unsubscribeLoaded();
+      unsubscribeEarned();
+      unsubscribeClosed();
     };
   }, []);
 
@@ -475,8 +483,8 @@ export default function HomeScreen() {
     pendingDownloadRef.current = { downloadUrl, quality, downloadId };
 
     // 광고가 로드되어 있으면 광고 표시, 없으면 바로 다운로드
-    if (interstitialLoaded && interstitialRef.current) {
-      interstitialRef.current.show();
+    if (rewardedAd && rewardedAd.loaded) {
+      rewardedAd.show();
     } else {
       // 광고가 없으면 바로 다운로드 시작
       if (pendingDownloadRef.current && performDownloadRef.current) {
@@ -609,7 +617,9 @@ export default function HomeScreen() {
               }
               android_ripple={{ color: "#cbd5e1" }}
             >
-              <ThemedText style={styles.modalButtonText}>확인</ThemedText>
+              <ThemedText style={styles.modalButtonText}>
+                {t("common.ok")}
+              </ThemedText>
             </Pressable>
           </View>
         </View>
@@ -813,7 +823,7 @@ export default function HomeScreen() {
         {loading && !showResult && (
           <View style={styles.surface}>
             <ThemedText style={styles.skeletonLoadingText}>
-              Loading...
+              {t("home.loading")}
             </ThemedText>
             <View style={styles.skeletonThumb} />
             <View style={styles.profileRow}>
@@ -938,6 +948,12 @@ export default function HomeScreen() {
                     />
                   </View>
 
+                  <View>
+                    <ThemedText style={styles.adDescriptionText}>
+                      {t("home.adDescription")}
+                    </ThemedText>
+                  </View>
+
                   <View style={styles.downloadList}>
                     {downloadResult.downloads.map((item, index) => (
                       <View key={item.id || index} style={styles.downloadRow}>
@@ -970,7 +986,7 @@ export default function HomeScreen() {
                         >
                           {downloadingVideo ===
                           (item.id || index.toString()) ? (
-                            <ActivityIndicator size="small" color="#e6007a" />
+                            <ActivityIndicator size="small" color="#3ae4a3" />
                           ) : (
                             <>
                               <ThemedText style={styles.downloadText}>
@@ -979,7 +995,7 @@ export default function HomeScreen() {
                               <MaterialIcons
                                 name="file-download"
                                 size={20}
-                                color="#e6007a"
+                                color="#3ae4a3"
                               />
                             </>
                           )}
@@ -1038,6 +1054,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#e5e7eb",
   },
+  adDescriptionText: {
+    color: "#e5e7eb",
+    fontSize: 12,
+    lineHeight: 20,
+    textAlign: "center",
+  },
   socialGridContainer: {
     marginVertical: 0,
   },
@@ -1065,7 +1087,7 @@ const styles = StyleSheet.create({
   },
   searchButton: {
     width: "100%",
-    backgroundColor: tintColorLight,
+    backgroundColor: "#3ae4a3",
     borderRadius: 16,
     paddingVertical: 18,
     alignItems: "center",
@@ -1275,7 +1297,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#ff2d87",
+    backgroundColor: "#3ae4a3",
   },
   quality: {
     fontSize: 16,
@@ -1295,7 +1317,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   downloadText: {
-    color: "#e6007a",
+    color: "#3ae4a3",
     fontWeight: "700",
   },
   errorText: {
