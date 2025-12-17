@@ -33,7 +33,9 @@
     "downloadCompleteBody2": "Bạn có thể tìm thấy nó trong ứng dụng thư viện.",
     "downloadCompleteAltBody": "Video đã lưu vào:",
     "downloadErrorTitle": "Lỗi tải xuống",
-    "downloadErrorBody": "Không thể tải xuống video. Vui lòng thử lại."
+    "downloadErrorBody": "Không thể tải xuống video. Vui lòng thử lại.",
+    "youtubeNotSupported": "Việc tải xuống video YouTube không được hỗ trợ do chính sách của App Store.",
+    "copyrightDisclaimer": "Vui lòng tôn trọng luật bản quyền và chỉ tải xuống các video mà bạn có quyền."
   },
   "downloads": {
     "loading": "Đang tải video...",

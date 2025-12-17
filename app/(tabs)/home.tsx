@@ -10,23 +10,23 @@ import { useRouter } from "expo-router";
 import * as Sharing from "expo-sharing";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Linking,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
+    ActivityIndicator,
+    Linking,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    View,
 } from "react-native";
 import {
-  AdEventType,
-  BannerAd,
-  BannerAdSize,
-  RewardedAd,
-  RewardedAdEventType,
-  TestIds,
+    AdEventType,
+    BannerAd,
+    BannerAdSize,
+    RewardedAd,
+    RewardedAdEventType,
+    TestIds,
 } from "react-native-google-mobile-ads";
 import { useLocale } from "../context/_locale";
 import { useDownloadPolicy } from "../context/download-policy";
@@ -188,6 +188,12 @@ export default function HomeScreen() {
     const videoType = getVideoType(url);
     if (videoType === "unknown") {
       showInfoModal(t("common.error"), t("home.invalidUrl"));
+      return;
+    }
+
+    if (Platform.OS === "ios" && videoType === "youtube") {
+      showInfoModal(t("common.error"), t("home.youtubeNotSupported"));
+      setLoading(false);
       return;
     }
 
@@ -895,11 +901,11 @@ export default function HomeScreen() {
               </View>
             )}
 
-            {downloadResult.content && (
+            {/* {downloadResult.content && (
               <ThemedText style={styles.contentText}>
                 {downloadResult.content}
               </ThemedText>
-            )}
+            )} */}
 
             {downloadResult.stats && downloadResult.stats.length > 0 && (
               <View style={styles.statsRow}>
@@ -950,7 +956,7 @@ export default function HomeScreen() {
 
                   <View>
                     <ThemedText style={styles.adDescriptionText}>
-                      {t("home.adDescription")}
+                      {t("home.copyrightDisclaimer")} {t("home.adDescription")}
                     </ThemedText>
                   </View>
 

@@ -65,8 +65,8 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "앱이 갤러리에 동영상을 저장할 수 있도록 사진 라이브러리 접근 권한이 필요합니다.",
-          "savePhotosPermission": "앱이 갤러리에 동영상을 저장할 수 있도록 사진 저장 권한이 필요합니다.",
+          "photosPermission": "Allow SSDOWN to access your photos to save downloaded videos.",
+          "savePhotosPermission": "Allow SSDOWN to save videos to your photos.",
           "isAccessMediaLocationEnabled": true
         }
       ],

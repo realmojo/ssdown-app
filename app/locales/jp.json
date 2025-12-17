@@ -33,7 +33,9 @@
     "downloadCompleteBody2": "ギャラリーアプリで確認できます。",
     "downloadCompleteAltBody": "動画の保存先:",
     "downloadErrorTitle": "ダウンロードエラー",
-    "downloadErrorBody": "動画のダウンロードに失敗しました。もう一度お試しください。"
+    "downloadErrorBody": "動画のダウンロードに失敗しました。もう一度お試しください。",
+    "youtubeNotSupported": "App Storeのポリシーにより、YouTube動画のダウンロードはサポートされていません。",
+    "copyrightDisclaimer": "著作権法を遵守し、許可を得た動画のみダウンロードしてください。"
   },
   "downloads": {
     "loading": "動画を読み込み中...",

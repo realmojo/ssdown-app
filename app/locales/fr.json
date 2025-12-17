@@ -33,7 +33,9 @@
     "downloadCompleteBody2": "Vous pouvez la trouver dans votre application de galerie.",
     "downloadCompleteAltBody": "Vidéo enregistrée dans :",
     "downloadErrorTitle": "Erreur de téléchargement",
-    "downloadErrorBody": "Échec du téléchargement de la vidéo. Veuillez réessayer."
+    "downloadErrorBody": "Échec du téléchargement de la vidéo. Veuillez réessayer.",
+    "youtubeNotSupported": "Le téléchargement de vidéos YouTube n'est pas pris en charge en raison des politiques de la App Store.",
+    "copyrightDisclaimer": "Veuillez respecter les lois sur le droit d'auteur et ne télécharger que les vidéos pour lesquelles vous avez l'autorisation."
   },
   "downloads": {
     "loading": "Chargement des vidéos...",

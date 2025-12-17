@@ -2,15 +2,12 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Tabs } from "expo-router";
 import React from "react";
 import { Platform, StyleSheet, View } from "react-native";
-
 import {
   BannerAd,
   BannerAdSize,
   TestIds,
 } from "react-native-google-mobile-ads";
 import { useLocale } from "../context/_locale";
-// Android: ca-app-pub-9130836798889522/7917853154
-// iOS: ca-app-pub-9130836798889522/9641890567
 
 {
   /* BANNER = 'BANNER',

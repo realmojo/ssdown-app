@@ -33,7 +33,9 @@
     "downloadCompleteBody2": "You can find it in your gallery app.",
     "downloadCompleteAltBody": "Video saved to:",
     "downloadErrorTitle": "Download Error",
-    "downloadErrorBody": "Failed to download video. Please try again."
+    "downloadErrorBody": "Failed to download video. Please try again.",
+    "youtubeNotSupported": "Downloading YouTube videos is not supported due to App Store policies.",
+    "copyrightDisclaimer": "Please respect copyright laws and only download videos you have permission to."
   },
   "downloads": {
     "loading": "Loading videos...",

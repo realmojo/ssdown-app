@@ -33,7 +33,9 @@
     "downloadCompleteBody2": "Você pode encontrá-lo no aplicativo da galeria.",
     "downloadCompleteAltBody": "Vídeo salvo em:",
     "downloadErrorTitle": "Erro no Download",
-    "downloadErrorBody": "Falha ao baixar o vídeo. Por favor, tente novamente."
+    "downloadErrorBody": "Falha ao baixar o vídeo. Por favor, tente novamente.",
+    "youtubeNotSupported": "O download de vídeos do YouTube não é suportado devido às políticas da App Store.",
+    "copyrightDisclaimer": "Respeite as leis de direitos autorais e baixe apenas vídeos para os quais você tem permissão."
   },
   "downloads": {
     "loading": "Carregando vídeos...",

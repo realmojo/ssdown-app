@@ -2,8 +2,10 @@ import { ThemedText } from "@/components/themed-text";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
 import { ScrollView, StyleSheet, View } from "react-native";
+import { useLocale } from "./context/_locale";
 
 export default function DownloadGuideScreen() {
+  const { t } = useLocale();
   const steps = [
     {
       title: "1. Copy",
@@ -56,6 +58,7 @@ export default function DownloadGuideScreen() {
       </View>
 
       <View style={styles.steps}>
+        <ThemedText>{t("home.copyrightDisclaimer")}</ThemedText>
         {steps.map((step) => (
           <View key={step.title} style={styles.stepCard}>
             <View
